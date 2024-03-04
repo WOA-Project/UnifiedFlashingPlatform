@@ -11,21 +11,21 @@ namespace UnifiedFlashingPlatform
 
             byte[] Request = new byte[Data.Length + 0x40];
 
-            string Header = FlashSignature;
+            string Header = FlashSignature; // NOKF
             Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
-            Request[0x05] = 0; // Device type = 0
+            Request[0x05] = 0; // Target device = 0
             Buffer.BlockCopy(BigEndian.GetBytes(StartSector, 4), 0, Request, 0x0B, 4); // Start sector
             Buffer.BlockCopy(BigEndian.GetBytes(Data.Length / 0x200, 4), 0, Request, 0x0F, 4); // Sector count
             Request[0x13] = (byte)Progress; // Progress (0 - 100)
-            Request[0x18] = 0; // Do Verify
-            Request[0x19] = 0; // Is Test
+            Request[0x18] = 0; // Verify needed
+            Request[0x19] = 0; // Skip write
 
             Buffer.BlockCopy(Data, 0, Request, 0x40, Data.Length);
 
             ExecuteRawMethod(Request);
         }
 
-        internal void Hello()
+        public void Hello()
         {
             byte[] Request = new byte[4];
             ByteOperations.WriteAsciiString(Request, 0, HelloSignature);
@@ -41,10 +41,9 @@ namespace UnifiedFlashingPlatform
             }
         }
 
-        /* NOKM */
         /* NOKN */
 
-        internal void ResetPhone()
+        public void ResetPhone()
         {
             Debug.WriteLine("Rebooting phone");
             try
@@ -62,7 +61,7 @@ namespace UnifiedFlashingPlatform
 
         /* NOKS */
 
-        internal GPT ReadGPT()
+        public GPT ReadGPT()
         {
             // If this function is used with a locked BootMgr v1, 
             // then the mode-switching should be done outside this function, 
@@ -113,14 +112,25 @@ namespace UnifiedFlashingPlatform
             return new GPT(GPTBuffer);  // NOKT message header and MBR are ignored
         }
 
-        /* NOKV */
+        public byte[] ReadPhoneInfo()
+        {
+            byte[] Request = new byte[4];
+            ByteOperations.WriteAsciiString(Request, 0, InfoQuerySignature); // NOKV
+            byte[] Response = ExecuteRawMethod(Request);
+            if ((Response == null) || (ByteOperations.ReadAsciiString(Response, 0, 4) == "NOKU"))
+            {
+                throw new NotSupportedException();
+            }
+
+            return Response[5..];
+        }
 
         public void Shutdown()
         {
             byte[] Request = new byte[4];
             string Header = ShutdownSignature;
             Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
-            ExecuteRawMethod(Request);
+            ExecuteRawVoidMethod(Request);
         }
     }
 }

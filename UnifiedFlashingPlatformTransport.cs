@@ -97,7 +97,7 @@ namespace UnifiedFlashingPlatform
         public byte[] ReadParam(string Param)
         {
             byte[] Request = new byte[0x0B];
-            string Header = ReadParamSignature;
+            string Header = ReadParamSignature; // NOKXFR
 
             Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
             Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Param), 0, Request, 7, Param.Length);
@@ -146,7 +146,7 @@ namespace UnifiedFlashingPlatform
 
         public string ReadDeviceProcessorManufacturer()
         {
-            return ReadStringParam("pm");
+            return ReadStringParam("pm\0\0");
         }
 
         public string ReadUnlockID()
@@ -157,15 +157,31 @@ namespace UnifiedFlashingPlatform
         public void Relock()
         {
             byte[] Request = new byte[7];
-            string Header = RelockSignature;
+            string Header = RelockSignature; // NOKXFO
             Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
             ExecuteRawMethod(Request);
         }
 
-        public void SwitchToMassStorageContext()
+        public void MassStorage()
         {
             byte[] Request = new byte[7];
-            string Header = SwitchModeSignature + "M";
+            string Header = MassStorageSignature; // NOKM
+            Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
+            ExecuteRawMethod(Request);
+        }
+
+        public void RebootPhone()
+        {
+            byte[] Request = new byte[7];
+            string Header = $"{SwitchModeSignature}R"; // NOKXCBR
+            Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
+            ExecuteRawMethod(Request);
+        }
+
+        public void SwitchToUFP()
+        {
+            byte[] Request = new byte[7];
+            string Header = $"{SwitchModeSignature}U"; // NOKXCBU
             Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
             ExecuteRawMethod(Request);
         }
@@ -173,32 +189,32 @@ namespace UnifiedFlashingPlatform
         public void ContinueBoot()
         {
             byte[] Request = new byte[7];
-            string Header = SwitchModeSignature + "W";
+            string Header = $"{SwitchModeSignature}W"; // NOKXCBW
             Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
             ExecuteRawMethod(Request);
         }
 
-        public void ExtendedShutdown()
+        public void PowerOff()
         {
             byte[] Request = new byte[7];
-            string Header = SwitchModeSignature + "Z";
+            string Header = $"{SwitchModeSignature}Z"; // NOKXCBZ
             Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
             ExecuteRawVoidMethod(Request);
         }
 
-        public void ExtendedResetPhone()
+        public void TransitionToUFPBootApp()
         {
             byte[] Request = new byte[7];
-            string Header = SwitchModeSignature + "R";
+            string Header = $"{SwitchModeSignature}T"; // NOKXCBT
             Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
-            ExecuteRawMethod(Request);
+            ExecuteRawVoidMethod(Request);
         }
 
         public ulong GetLogSize()
         {
             byte[] Request = new byte[0x10];
-            string Header = ReadParamSignature;
-            const string Param = "LZ";
+            string Header = ReadParamSignature; // NOKXFR
+            const string Param = "LZ\0\0";
 
             Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
             Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Param), 0, Request, 7, Param.Length);

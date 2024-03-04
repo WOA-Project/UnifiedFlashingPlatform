@@ -6,74 +6,74 @@
         // Not valid commands
         //
         /* NOK    */
-        private static string Signature = "NOK";
+        private static string Signature => "NOK";
         /* NOKX   */
-        private static string ExtendedMessageSignature = Signature + "X";
+        private static string ExtendedMessageSignature => $"{Signature}X";
         /* NOKXC  */
-        private static string CommonExtendedMessageSignature = ExtendedMessageSignature + "C";
+        private static string CommonExtendedMessageSignature => $"{ExtendedMessageSignature}C";
         /* NOKXF  */
-        private static string UFPExtendedMessageSignature = ExtendedMessageSignature + "F";
+        private static string UFPExtendedMessageSignature => $"{ExtendedMessageSignature}F";
 
         //
         // Normal commands
         //
         /* NOKF   */
-        private static string FlashSignature = Signature + "F";
+        private static string FlashSignature => $"{Signature}F";
         /* NOKI   */
-        private static string HelloSignature = Signature + "I";
+        private static string HelloSignature => $"{Signature}I";
         /* NOKM   */
-        private static string MassStorageSignature = Signature + "M";
+        private static string MassStorageSignature => $"{Signature}M";
         /* NOKN   */
-        private static string TelemetryEndSignature = Signature + "N";
+        private static string TelemetryEndSignature => $"{Signature}N";
         /* NOKR   */
-        private static string RebootSignature = Signature + "R";
+        private static string RebootSignature => $"{Signature}R";
         /* NOKS   */
-        private static string TelemetryStartSignature = Signature + "S";
+        private static string TelemetryStartSignature => $"{Signature}S";
         /* NOKT   */
-        private static string GetGPTSignature = Signature + "T";
+        private static string GetGPTSignature => $"{Signature}T";
         /* NOKV   */
-        private static string InfoQuerySignature = Signature + "V";
+        private static string InfoQuerySignature => $"{Signature}V";
         /* NOKZ   */
-        private static string ShutdownSignature = Signature + "Z";
+        private static string ShutdownSignature => $"{Signature}Z";
 
         //
         // Common extended commands
         //
         /* NOKXCB */
-        private static string SwitchModeSignature = CommonExtendedMessageSignature + "B";
+        private static string SwitchModeSignature => $"{CommonExtendedMessageSignature}B";
         /* NOKXCC */
-        private static string ClearScreenSignature = CommonExtendedMessageSignature + "C";
+        private static string ClearScreenSignature => $"{CommonExtendedMessageSignature}C";
         /* NOKXCD */
-        private static string GetDirectoryEntriesSignature = CommonExtendedMessageSignature + "D";
+        private static string GetDirectoryEntriesSignature => $"{CommonExtendedMessageSignature}D";
         /* NOKXCE */
-        private static string EchoSignature = CommonExtendedMessageSignature + "E";
+        private static string EchoSignature => $"{CommonExtendedMessageSignature}E";
         /* NOKXCF */
-        private static string GetFileSignature = CommonExtendedMessageSignature + "F";
+        private static string GetFileSignature => $"{CommonExtendedMessageSignature}F";
         /* NOKXCM */
-        private static string DisplayCustomMessageSignature = CommonExtendedMessageSignature + "M";
+        private static string DisplayCustomMessageSignature => $"{CommonExtendedMessageSignature}M";
         /* NOKXCP */
-        private static string PutFileSignature = CommonExtendedMessageSignature + "P";
+        private static string PutFileSignature => $"{CommonExtendedMessageSignature}P";
         /* NOKXCT */
-        private static string BenchmarkTestsSignature = CommonExtendedMessageSignature + "T";
+        private static string BenchmarkTestsSignature => $"{CommonExtendedMessageSignature}T";
 
         //
         // UFP extended commands
         //
         /* NOKXFF */
-        private static string AsyncFlashModeSignature = UFPExtendedMessageSignature + "F";
+        private static string AsyncFlashModeSignature => $"{UFPExtendedMessageSignature}F";
         /* NOKXFI */
-        private static string UnlockSignature = UFPExtendedMessageSignature + "I";
+        private static string UnlockSignature => $"{UFPExtendedMessageSignature}I";
         /* NOKXFO */
-        private static string RelockSignature = UFPExtendedMessageSignature + "O";
+        private static string RelockSignature => $"{UFPExtendedMessageSignature}O";
         /* NOKXFR */
-        private static string ReadParamSignature = UFPExtendedMessageSignature + "R";
+        private static string ReadParamSignature => $"{UFPExtendedMessageSignature}R";
         /* NOKXFS */
-        private static string SecureFlashSignature = UFPExtendedMessageSignature + "S";
+        private static string SecureFlashSignature => $"{UFPExtendedMessageSignature}S";
         /* NOKXFT */
-        private static string TelemetryReadSignature = UFPExtendedMessageSignature + "T";
+        private static string TelemetryReadSignature => $"{UFPExtendedMessageSignature}T";
         /* NOKXFW */
-        private static string WriteParamSignature = UFPExtendedMessageSignature + "W";
+        private static string WriteParamSignature => $"{UFPExtendedMessageSignature}W";
         /* NOKXFX */
-        private static string GetLogsSignature = UFPExtendedMessageSignature + "X";
+        private static string GetLogsSignature => $"{UFPExtendedMessageSignature}X";
     }
 }
