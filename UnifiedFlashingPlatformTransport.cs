@@ -210,6 +210,19 @@ namespace UnifiedFlashingPlatform
             ExecuteRawVoidMethod(Request);
         }
 
+        public void DisplayCustomMessage(string Message, ushort Row)
+        {
+            byte[] MessageBuffer = System.Text.Encoding.Unicode.GetBytes(Message);
+            byte[] Request = new byte[8 + MessageBuffer.Length];
+            string Header = DisplayCustomMessageSignature; // NOKXCM
+
+            Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
+            Buffer.BlockCopy(BitConverter.GetBytes(Row).Reverse().ToArray(), 0, Request, 6, 2);
+            Buffer.BlockCopy(MessageBuffer, 0, Request, 8, MessageBuffer.Length);
+
+            ExecuteRawMethod(Request);
+        }
+
         public ulong GetLogSize()
         {
             byte[] Request = new byte[0x10];
