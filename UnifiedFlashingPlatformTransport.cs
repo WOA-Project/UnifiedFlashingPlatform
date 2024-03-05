@@ -223,6 +223,50 @@ namespace UnifiedFlashingPlatform
             ExecuteRawMethod(Request);
         }
 
+        public void ClearScreen()
+        {
+            byte[] Request = new byte[6];
+            string Header = ClearScreenSignature; // NOKXCC
+            Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
+            ExecuteRawMethod(Request);
+        }
+
+        public byte[] Echo(byte[] DataPayload)
+        {
+            byte[] Request = new byte[10 + DataPayload.Length];
+            string Header = EchoSignature; // NOKXCE
+
+            Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
+            Buffer.BlockCopy(BitConverter.GetBytes(DataPayload.Length).Reverse().ToArray(), 0, Request, 6, 4);
+            Buffer.BlockCopy(DataPayload, 0, Request, 10, DataPayload.Length);
+
+            byte[] Response = ExecuteRawMethod(Request);
+            if ((Response == null) || (Response.Length < 6 + DataPayload.Length))
+            {
+                return null;
+            }
+
+            byte[] Result = new byte[DataPayload.Length];
+            Buffer.BlockCopy(Response, 6, Result, 0, DataPayload.Length);
+            return Result;
+        }
+
+        public void TelemetryStart()
+        {
+            byte[] Request = new byte[4];
+            string Header = TelemetryStartSignature; // NOKS
+            Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
+            ExecuteRawVoidMethod(Request);
+        }
+
+        public void TelemetryEnd()
+        {
+            byte[] Request = new byte[4];
+            string Header = TelemetryEndSignature; // NOKN
+            Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
+            ExecuteRawVoidMethod(Request);
+        }
+
         public ulong GetLogSize()
         {
             byte[] Request = new byte[0x10];

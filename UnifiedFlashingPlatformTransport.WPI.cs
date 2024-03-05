@@ -5,7 +5,7 @@ namespace UnifiedFlashingPlatform
 {
     public partial class UnifiedFlashingPlatformTransport
     {
-        public void FlashSectors(UInt32 StartSector, byte[] Data, int Progress = 0)
+        public void FlashSectors(UInt32 StartSector, byte[] Data, byte TargetDevice = 0, int Progress = 0)
         {
             // Start sector is in UInt32, so max size of eMMC is 2 TB.
 
@@ -13,7 +13,7 @@ namespace UnifiedFlashingPlatform
 
             string Header = FlashSignature; // NOKF
             Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
-            Request[0x05] = 0; // Target device = 0
+            Request[0x05] = TargetDevice; // Target device: 0: eMMC, 1: SDIO, 2: Other ???, 3: ???
             Buffer.BlockCopy(BigEndian.GetBytes(StartSector, 4), 0, Request, 0x0B, 4); // Start sector
             Buffer.BlockCopy(BigEndian.GetBytes(Data.Length / 0x200, 4), 0, Request, 0x0F, 4); // Sector count
             Request[0x13] = (byte)Progress; // Progress (0 - 100)
@@ -41,8 +41,6 @@ namespace UnifiedFlashingPlatform
             }
         }
 
-        /* NOKN */
-
         public void ResetPhone()
         {
             Debug.WriteLine("Rebooting phone");
@@ -58,8 +56,6 @@ namespace UnifiedFlashingPlatform
                 Debug.WriteLine("Assuming automatic reset already in progress");
             }
         }
-
-        /* NOKS */
 
         public GPT ReadGPT()
         {
@@ -94,8 +90,26 @@ namespace UnifiedFlashingPlatform
                 throw new NotSupportedException("ReadGPT: Error 0x" + Error.ToString("X4"));
             }
 
-            byte[] GPTBuffer = new byte[Buffer.Length - 0x208];
-            System.Buffer.BlockCopy(Buffer, 0x208, GPTBuffer, 0, 0x4200);
+            // Length: 0x4400 for 512 (0x200) Sector Size (from sector 0 to sector 34)
+            // Length: 0x6000 for 4096 (0x1000) Sector Size (from sector 0 to sector 6)
+
+            UInt32 ReturnedGPTBufferLength = (UInt32)Buffer.Length - 8;
+            UInt32 SectorSize;
+            if (Buffer.Length == 0x4408)
+            {
+                SectorSize = 512;
+            }
+            else if (Buffer.Length == 0x6008)
+            {
+                SectorSize = 4096;
+            }
+            else
+            {
+                throw new NotSupportedException("ReadGPT: Unsupported output size! 0x" + ReturnedGPTBufferLength.ToString("X4"));
+            }
+
+            byte[] GPTBuffer = new byte[ReturnedGPTBufferLength - SectorSize];
+            System.Buffer.BlockCopy(Buffer, 8 + (Int32)SectorSize, GPTBuffer, 0, (Int32)ReturnedGPTBufferLength - (Int32)SectorSize);
 
             /*if (Switch)
             {
@@ -109,7 +123,7 @@ namespace UnifiedFlashingPlatform
                 }
             }*/
 
-            return new GPT(GPTBuffer);  // NOKT message header and MBR are ignored
+            return new GPT(GPTBuffer, SectorSize);  // NOKT message header and MBR are ignored
         }
 
         public byte[] ReadPhoneInfo()

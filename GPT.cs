@@ -40,6 +40,7 @@ namespace UnifiedFlashingPlatform
         internal UInt64 FirstUsableSector;
         internal UInt64 LastUsableSector;
         internal bool HasChanged = false;
+        internal UInt32 SectorSize;
 
         [XmlElement("Partition")]
         public List<Partition> Partitions = new();
@@ -48,9 +49,10 @@ namespace UnifiedFlashingPlatform
         {
         }
 
-        internal GPT(byte[] GPTBuffer)
+        internal GPT(byte[] GPTBuffer, UInt32 SectorSize)
         {
             this.GPTBuffer = GPTBuffer;
+            this.SectorSize = SectorSize;
             UInt32? TempHeaderOffset = ByteOperations.FindAscii(GPTBuffer, "EFI PART");
             if (TempHeaderOffset == null)
             {
@@ -59,7 +61,7 @@ namespace UnifiedFlashingPlatform
 
             HeaderOffset = (UInt32)TempHeaderOffset;
             HeaderSize = ByteOperations.ReadUInt32(GPTBuffer, HeaderOffset + 0x0C);
-            TableOffset = HeaderOffset + 0x1000;
+            TableOffset = HeaderOffset + SectorSize;
             FirstUsableSector = ByteOperations.ReadUInt64(GPTBuffer, HeaderOffset + 0x28);
             LastUsableSector = ByteOperations.ReadUInt64(GPTBuffer, HeaderOffset + 0x30);
             MaxPartitions = ByteOperations.ReadUInt32(GPTBuffer, HeaderOffset + 0x50);
@@ -268,12 +270,12 @@ namespace UnifiedFlashingPlatform
                         // The partition in the xml is also present in the archive.
                         // If the length is specified in the xml, it must match the file in the archive.
 
-                        ulong StreamLengthInSectors = (ulong)Entry.Length / 0x1000;
+                        ulong StreamLengthInSectors = (ulong)Entry.Length / SectorSize;
                         using (DecompressedStream DecompressedStream = new(Entry.Open()))
                         {
                             try
                             {
-                                StreamLengthInSectors = (ulong)DecompressedStream.Length / 0x1000;
+                                StreamLengthInSectors = (ulong)DecompressedStream.Length / SectorSize;
                             }
                             catch { }
                         }
@@ -466,10 +468,10 @@ namespace UnifiedFlashingPlatform
                     if (Entry != null)
                     {
                         DecompressedStream DecompressedStream = new(Entry.Open());
-                        ulong StreamLengthInSectors = (ulong)Entry.Length / 0x1000;
+                        ulong StreamLengthInSectors = (ulong)Entry.Length / SectorSize;
                         try
                         {
-                            StreamLengthInSectors = (ulong)DecompressedStream.Length / 0x1000;
+                            StreamLengthInSectors = (ulong)DecompressedStream.Length / SectorSize;
                         }
                         catch { }
                         DecompressedStream.Close();
@@ -516,10 +518,10 @@ namespace UnifiedFlashingPlatform
                     }
                     ZipArchiveEntry Entry = Archive.Entries.FirstOrDefault(e => string.Equals(e.Name, NewPartition.Name, StringComparison.CurrentCultureIgnoreCase) || e.Name.StartsWith(NewPartition.Name + ".", true, System.Globalization.CultureInfo.GetCultureInfo("en-US")));
                     DecompressedStream DecompressedStream = new(Entry.Open());
-                    ulong StreamLengthInSectors = (ulong)Entry.Length / 0x1000;
+                    ulong StreamLengthInSectors = (ulong)Entry.Length / SectorSize;
                     try
                     {
-                        StreamLengthInSectors = (ulong)DecompressedStream.Length / 0x1000;
+                        StreamLengthInSectors = (ulong)DecompressedStream.Length / SectorSize;
                     }
                     catch { }
                     DecompressedStream.Close();
