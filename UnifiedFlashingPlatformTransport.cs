@@ -97,9 +97,6 @@ namespace UnifiedFlashingPlatform
 
         public byte[] ReadParam(string Param)
         {
-            //Console.WriteLine();
-            //Console.WriteLine($"Reading {Param}");
-
             byte[] Request = new byte[0x0B];
             string Header = ReadParamSignature; // NOKXFR
 
@@ -114,9 +111,6 @@ namespace UnifiedFlashingPlatform
 
             byte[] Result = new byte[Response[0x10]];
             Buffer.BlockCopy(Response, 0x11, Result, 0, Response[0x10]);
-
-            //Console.WriteLine($"Result (as  bytes): {BitConverter.ToString(Result).Replace("-", "")}");
-
             return Result;
         }
 
@@ -128,11 +122,7 @@ namespace UnifiedFlashingPlatform
                 return null;
             }
 
-            string result = Encoding.ASCII.GetString(Bytes).Trim('\0');
-            //Console.WriteLine($"Result (fl string): {Encoding.ASCII.GetString(Bytes).Replace("\0", "\\0")}");
-            //Console.WriteLine($"Result (as string): {result}");
-
-            return result;
+            return Encoding.ASCII.GetString(Bytes).Trim('\0');
         }
 
         public enum FlashAppType
