@@ -97,6 +97,9 @@ namespace UnifiedFlashingPlatform
 
         public byte[] ReadParam(string Param)
         {
+            //Console.WriteLine();
+            //Console.WriteLine($"Reading {Param}");
+
             byte[] Request = new byte[0x0B];
             string Header = ReadParamSignature; // NOKXFR
 
@@ -111,12 +114,14 @@ namespace UnifiedFlashingPlatform
 
             byte[] Result = new byte[Response[0x10]];
             Buffer.BlockCopy(Response, 0x11, Result, 0, Response[0x10]);
+
+            //Console.WriteLine($"Result (as  bytes): {BitConverter.ToString(Result).Replace("-", "")}");
+
             return Result;
         }
 
         public string ReadStringParam(string Param)
         {
-            Console.WriteLine($"Reading {Param}");
             byte[] Bytes = ReadParam(Param);
             if (Bytes == null)
             {
@@ -124,10 +129,8 @@ namespace UnifiedFlashingPlatform
             }
 
             string result = Encoding.ASCII.GetString(Bytes).Trim('\0');
-
-            Console.WriteLine($"Result (as  bytes): {BitConverter.ToString(Bytes).Replace("-", "")}");
-            Console.WriteLine($"Result (fl string): {Encoding.ASCII.GetString(Bytes).Replace("\0", "\\0")}");
-            Console.WriteLine($"Result (as string): {result}");
+            //Console.WriteLine($"Result (fl string): {Encoding.ASCII.GetString(Bytes).Replace("\0", "\\0")}");
+            //Console.WriteLine($"Result (as string): {result}");
 
             return result;
         }
@@ -160,10 +163,10 @@ namespace UnifiedFlashingPlatform
             public uint MajorVersion;
             public uint MinorVersion;
 
-            public override string ToString()
+            public override readonly string ToString()
             {
-                return "IsResetProtectionEnabled: " + IsResetProtectionEnabled + 
-                    " - MajorVersion: " + MajorVersion + 
+                return "IsResetProtectionEnabled: " + IsResetProtectionEnabled +
+                    " - MajorVersion: " + MajorVersion +
                     " - MinorVersion: " + MinorVersion;
             }
         }
@@ -203,7 +206,7 @@ namespace UnifiedFlashingPlatform
         public ushort? ReadCurrentBootOption()
         {
             byte[] Bytes = ReadParam("CUFO");
-            if (Bytes == null)
+            if (Bytes == null || Bytes.Length != 2)
             {
                 return null;
             }
@@ -214,7 +217,7 @@ namespace UnifiedFlashingPlatform
         public bool? ReadDeviceAsyncSupport()
         {
             byte[] Bytes = ReadParam("DAS\0");
-            if (Bytes == null)
+            if (Bytes == null || Bytes.Length != 2)
             {
                 return null;
             }
@@ -222,7 +225,7 @@ namespace UnifiedFlashingPlatform
             return BitConverter.ToUInt16(Bytes.Reverse().ToArray()) == 1;
         }
 
-        public UInt64? ReadDirectoryEntriesSize(string PartitionName, string FileName)
+        public UInt64? ReadDirectoryEntriesSize(string PartitionName, string DirectoryName)
         {
             if (PartitionName.Length > 35)
             {
@@ -230,9 +233,9 @@ namespace UnifiedFlashingPlatform
             }
 
             byte[] PartitionNameBuffer = Encoding.Unicode.GetBytes(PartitionName);
-            byte[] FileNameBuffer = Encoding.Unicode.GetBytes(FileName);
+            byte[] DirectoryNameBuffer = Encoding.Unicode.GetBytes(DirectoryName);
 
-            byte[] Request = new byte[87 + FileNameBuffer.Length + 2];
+            byte[] Request = new byte[87 + DirectoryNameBuffer.Length + 2];
             string Header = ReadParamSignature; // NOKXFR
             const string Param = "DES\0";
 
@@ -240,7 +243,7 @@ namespace UnifiedFlashingPlatform
             Buffer.BlockCopy(Encoding.ASCII.GetBytes(Param), 0, Request, 7, Param.Length);
 
             Buffer.BlockCopy(PartitionNameBuffer, 0, Request, 15, PartitionNameBuffer.Length);
-            Buffer.BlockCopy(FileNameBuffer, 0, Request, 87, FileNameBuffer.Length);
+            Buffer.BlockCopy(DirectoryNameBuffer, 0, Request, 87, DirectoryNameBuffer.Length);
 
             byte[] Response = ExecuteRawMethod(Request);
             if ((Response == null) || (Response.Length < 0x10))
@@ -278,14 +281,14 @@ namespace UnifiedFlashingPlatform
             public string BaseboardManufacturer;
             public string BaseboardProduct;
 
-            public override string ToString()
+            public override readonly string ToString()
             {
-                return "Manufacturer: " + Manufacturer + 
-                    " - Family: " + Family + 
-                    " - Product Name: " + ProductName + 
-                    " - Product Version: " + ProductVersion + 
-                    " - SKU Number: " + SKUNumber + 
-                    " - Baseboard Manufacturer: " + BaseboardManufacturer + 
+                return "Manufacturer: " + Manufacturer +
+                    " - Family: " + Family +
+                    " - Product Name: " + ProductName +
+                    " - Product Version: " + ProductVersion +
+                    " - SKU Number: " + SKUNumber +
+                    " - Baseboard Manufacturer: " + BaseboardManufacturer +
                     " - Baseboard Product: " + BaseboardProduct;
             }
         }
@@ -339,84 +342,273 @@ namespace UnifiedFlashingPlatform
             };
         }
 
-        public string ReadDataVerifySpeed()
+        //
+        // Gets the last FFU Flash Operation Data verify speed in KB/s
+        //
+        public UInt32? ReadDataVerifySpeed()
         {
-            return ReadStringParam("DTSP");
+            byte[] Bytes = ReadParam("DTSP");
+            if (Bytes == null || Bytes.Length != 4)
+            {
+                return null;
+            }
+
+            return BitConverter.ToUInt32(Bytes.Reverse().ToArray());
         }
 
-        public string ReadDeviceID()
+        public Guid? ReadDeviceID()
         {
-            return ReadStringParam("DUI\0");
+            byte[] Bytes = ReadParam("DUI\0");
+            if (Bytes == null || Bytes.Length != 16)
+            {
+                return null;
+            }
+
+            return new Guid(Bytes);
         }
 
-        public string ReadEmmcTestResult()
+        public UInt32? ReadEmmcTestResult()
         {
-            return ReadStringParam("EMMT");
+            byte[] Bytes = ReadParam("EMMT");
+            if (Bytes == null || Bytes.Length != 4)
+            {
+                return null;
+            }
+
+            return BitConverter.ToUInt32(Bytes.Reverse().ToArray());
         }
 
-        public string ReadEmmcSize()
+        //
+        // Gets the eMMC Size in sectors, if present
+        //
+        public UInt32? ReadEmmcSize()
         {
-            return ReadStringParam("EMS\0");
+            byte[] Bytes = ReadParam("EMS\0");
+            if (Bytes == null || Bytes.Length != 4)
+            {
+                return null;
+            }
+
+            return BitConverter.ToUInt32(Bytes.Reverse().ToArray());
         }
 
-        public string ReadEmmcWriteSpeed()
+        //
+        // Gets the eMMC Write speed in KB/s
+        //
+        public UInt32? ReadEmmcWriteSpeed()
         {
-            return ReadStringParam("EMWS");
+            byte[] Bytes = ReadParam("EMWS");
+            if (Bytes == null || Bytes.Length != 4)
+            {
+                return null;
+            }
+
+            return BitConverter.ToUInt32(Bytes.Reverse().ToArray());
         }
 
-        public string ReadFlashAppInfo()
+        public struct FlashAppInfo
         {
-            return ReadStringParam("FAI\0");
+            public byte ProtocolMajorVersion;
+            public byte ProtocolMinorVersion;
+            public byte MajorVersion;
+            public byte MinorVersion;
+
+            public override readonly string ToString()
+            {
+                return "ProtocolMajorVersion: " + ProtocolMajorVersion +
+                    " - ProtocolMinorVersion: " + ProtocolMinorVersion +
+                    " - MajorVersion: " + MajorVersion +
+                    " - MinorVersion: " + MinorVersion;
+            }
         }
 
+        public FlashAppInfo? ReadFlashAppInfo()
+        {
+            byte[] Bytes = ReadParam("FAI\0");
+            if (Bytes == null || Bytes.Length != 6 || Bytes[0] != 2)
+            {
+                return null;
+            }
+
+            return new FlashAppInfo()
+            {
+                ProtocolMajorVersion = Bytes[1],
+                ProtocolMinorVersion = Bytes[2],
+                MajorVersion = Bytes[3],
+                MinorVersion = Bytes[4]
+            };
+        }
+
+        //
+        // Reads the device properties from the UEFI Variable "FfuConfigurationOptions"
+        // in the g_guidLumiaGuid namespace and returns it as a string.
+        //
         public string ReadFlashOptions()
         {
             return ReadStringParam("FO\0\0");
         }
 
-        public string ReadFlashingStatus()
+        public UInt32? ReadFlashingStatus()
         {
-            return ReadStringParam("FS\0\0");
+            byte[] Bytes = ReadParam("FS\0\0");
+            if (Bytes == null || Bytes.Length != 4)
+            {
+                return null;
+            }
+
+            return BitConverter.ToUInt32(Bytes.Reverse().ToArray());
         }
 
-        public string ReadFileSize()
+        public UInt64? ReadFileSize(string PartitionName, string FileName)
         {
-            return ReadStringParam("FZ\0\0");
+            if (PartitionName.Length > 35)
+            {
+                return null;
+            }
+
+            byte[] PartitionNameBuffer = Encoding.Unicode.GetBytes(PartitionName);
+            byte[] FileNameBuffer = Encoding.Unicode.GetBytes(FileName);
+
+            byte[] Request = new byte[87 + FileNameBuffer.Length + 2];
+            string Header = ReadParamSignature; // NOKXFR
+            const string Param = "FZ\0\0";
+
+            Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
+            Buffer.BlockCopy(Encoding.ASCII.GetBytes(Param), 0, Request, 7, Param.Length);
+
+            Buffer.BlockCopy(PartitionNameBuffer, 0, Request, 15, PartitionNameBuffer.Length);
+            Buffer.BlockCopy(FileNameBuffer, 0, Request, 87, FileNameBuffer.Length);
+
+            byte[] Response = ExecuteRawMethod(Request);
+            if ((Response == null) || (Response.Length < 0x10))
+            {
+                return null;
+            }
+
+            byte[] Result = new byte[Response[0x10]];
+            Buffer.BlockCopy(Response, 0x11, Result, 0, Response[0x10]);
+
+            return BitConverter.ToUInt64(Result.Reverse().ToArray());
         }
 
-        public string ReadSecureBootStatus()
+        public bool? ReadSecureBootStatus()
         {
-            return ReadStringParam("GSBS");
+            byte[] Bytes = ReadParam("GSBS");
+            if (Bytes == null)
+            {
+                return null;
+            }
+
+            return Bytes[0] == 1;
         }
 
         public string ReadUEFIVariable()
         {
+            // TODO: Implement
+            //
+            // Pseudo code:
+            //
+            //     DebugPrintFormatted(2i64, "HandleReadParamReq", 4298i64, "Read UEFI variable...\r\n");
+            //     LogWrite("INFO", "HandleReadParamReq", "Read UEFI variable...\r\n");
+            //     v81 = *(unsigned __int8 *)(a1 + 35);
+            //     v82 = *(unsigned __int8 *)(a1 + 36);
+            //     v169 = (const char *)(*(unsigned __int8 *)(a1 + 34) | ((*(unsigned __int8 *)(a1 + 33) | ((*(unsigned             //     __int8 *)(a1 + 32) | ((unsigned __int64)*(unsigned __int8 *)(a1 + 31) << 8)) << 8)) << 8));
+            //     ZeroPool = (const char *)AllocatePool(*(unsigned __int8 *)(a1 + 38) | ((*(unsigned __int8 *)(a1 + 37) |             //     ((v82 | (v81 << 8)) << 8)) << 8));
+            //     memmove(ZeroPool);
+            //     Pool = (const char *)AllocatePool(v169);
+            //     v83 = VariableGet(ZeroPool, a1 + 15, &v165, &v169, Pool, 1i64, &v163);
+            //
             return ReadStringParam("GUFV");
         }
 
         public string ReadUEFIVariableSize()
         {
+            // TODO: Implement
+            //
+            // Pseudo code:
+            //
+            //       v105 = *(unsigned __int8 *)(a1 + 35);
+            //     v106 = *(unsigned __int8 *)(a1 + 36);
+            //     v165 = *(unsigned __int8 *)(a1 + 34) | ((*(unsigned __int8 *)(a1 + 33) | ((*(unsigned __int8 *)(a1 +             //     32) | (*(unsigned __int8 *)(a1 + 31) << 8)) << 8)) << 8);
+            //     Pool = (const char *)AllocatePool(*(unsigned __int8 *)(a1 + 38) | ((*(unsigned __int8 *)(a1 + 37) |             //     ((v106 | (v105 << 8)) << 8)) << 8));
+            //     memmove(Pool);
+            //     v107 = VariableGetSize(Pool, a1 + 15, &v165, 1i64, &v163);
+            //     v108 = v107;
+            //
+            // Returns:
+            //
+            //           v109 = BYTE1(v165);
+            //           v9 = 4;
+            //           v110 = HIWORD(v165);
+            //           *(_BYTE *)(a3 + 20) = v165;
+            //           *(_BYTE *)(a3 + 18) = v110;
+            //           *(_BYTE *)(a3 + 17) = BYTE1(v110);
+            //           *(_BYTE *)(a3 + 19) = v109;
+            //
             return ReadStringParam("GUVS");
         }
 
-        public string ReadLargestMemoryRegion()
+        //
+        // Returns the largest memory region in bytes available for use by UFP
+        //
+        public UInt64? ReadLargestMemoryRegion()
         {
-            return ReadStringParam("LGMR");
+            byte[] Bytes = ReadParam("LGMR");
+            if (Bytes == null || Bytes.Length != 8)
+            {
+                return null;
+            }
+
+            return BitConverter.ToUInt64(Bytes.Reverse().ToArray());
         }
 
-        public string ReadLogSize()
+        public enum LogType
         {
-            return ReadStringParam("LZ\0\0");
+            Flashing = 1,
+            Servicing = 2,
+            Unknown
         }
 
+        public UInt64? ReadLogSize(LogType LogType)
+        {
+            byte[] Request = new byte[0x10];
+            string Header = ReadParamSignature; // NOKXFR
+            const string Param = "LZ\0\0";
+
+            Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
+            Buffer.BlockCopy(Encoding.ASCII.GetBytes(Param), 0, Request, 7, Param.Length);
+
+            Request[15] = (byte)LogType;
+
+            byte[] Response = ExecuteRawMethod(Request);
+            if ((Response == null) || (Response.Length < 0x10))
+            {
+                return 0;
+            }
+
+            byte[] Result = new byte[Response[0x10]];
+            Buffer.BlockCopy(Response, 0x11, Result, 0, Response[0x10]);
+
+            return BitConverter.ToUInt64(Result.Reverse().ToArray(), 0);
+        }
+
+        //
+        // Reads the MAC Address in the following format: "%02x-%02x-%02x-%02x-%02x-%02x"
+        //
         public string ReadMacAddress()
         {
             return ReadStringParam("MAC\0");
         }
 
-        public string ReadModeData()
+        public UInt32? ReadModeData()
         {
-            return ReadStringParam("MODE");
+            byte[] Bytes = ReadParam("MODE");
+            if (Bytes == null || Bytes.Length != 4)
+            {
+                return null;
+            }
+
+            return BitConverter.ToUInt32(Bytes.Reverse().ToArray());
         }
 
         public string ReadProcessorManufacturer()
@@ -424,46 +616,83 @@ namespace UnifiedFlashingPlatform
             return ReadStringParam("pm\0\0");
         }
 
-        public string ReadSDCardSize()
+        //
+        // Gets the SD Card Size in sectors, if present
+        //
+        public UInt32? ReadSDCardSize()
         {
-            return ReadStringParam("SDS\0");
+            byte[] Bytes = ReadParam("SDS\0");
+            if (Bytes == null || Bytes.Length != 4)
+            {
+                return null;
+            }
+
+            return BitConverter.ToUInt32(Bytes.Reverse().ToArray());
         }
 
         public string ReadSupportedFFUProtocolInfo()
         {
+            // TODO
             return ReadStringParam("SFPI");
         }
 
         public string ReadSMBIOSData()
         {
+            // TODO
             return ReadStringParam("SMBD");
         }
 
-        public string ReadSerialNumber()
+        public Guid? ReadSerialNumber()
         {
-            return ReadStringParam("SN\0\0");
+            byte[] Bytes = ReadParam("SN\0\0");
+            if (Bytes == null || Bytes.Length != 16)
+            {
+                return null;
+            }
+
+            return new Guid(Bytes);
         }
 
-        public string ReadSizeOfSystemMemory()
+        //
+        // Returns the size of system memory in kB
+        //
+        public UInt64? ReadSizeOfSystemMemory()
         {
-            return ReadStringParam("SOSM");
+            byte[] Bytes = ReadParam("SOSM");
+            if (Bytes == null || Bytes.Length != 8)
+            {
+                return null;
+            }
+
+            return BitConverter.ToUInt64(Bytes.Reverse().ToArray());
         }
 
         public string ReadSecurityStatus()
         {
+            // TODO
             return ReadStringParam("SS\0\0");
         }
 
         public string ReadTelemetryLogSize()
         {
+            // TODO
             return ReadStringParam("TELS");
         }
 
-        public string ReadTransferSize()
+        public UInt32? ReadTransferSize()
         {
-            return ReadStringParam("TS\0\0");
+            byte[] Bytes = ReadParam("TS\0\0");
+            if (Bytes == null || Bytes.Length != 4)
+            {
+                return null;
+            }
+
+            return BitConverter.ToUInt32(Bytes.Reverse().ToArray());
         }
 
+        //
+        // Reads the UEFI Boot Flag variable content and returns it as a string.
+        //
         public string ReadUEFIBootFlag()
         {
             return ReadStringParam("UBF\0");
@@ -471,9 +700,14 @@ namespace UnifiedFlashingPlatform
 
         public string ReadUEFIBootOptions()
         {
+            // TODO
             return ReadStringParam("UEBO");
         }
 
+        //
+        // Reads the device properties from the UEFI Variable "UnlockID"
+        // in the g_guidOfflineDUIdEfiNamespace namespace and returns it as a string.
+        //
         public string ReadUnlockID()
         {
             return ReadStringParam("UKID");
@@ -481,17 +715,30 @@ namespace UnifiedFlashingPlatform
 
         public string ReadUnlockTokenFiles()
         {
+            // TODO
             return ReadStringParam("UKTF");
         }
 
-        public string ReadUSBSpeed()
+        public UInt16? ReadUSBSpeed()
         {
-            return ReadStringParam("USBS");
+            byte[] Bytes = ReadParam("USBS");
+            if (Bytes == null || Bytes.Length != 2)
+            {
+                return null;
+            }
+
+            return BitConverter.ToUInt16(Bytes.Reverse().ToArray());
         }
 
-        public string ReadWriteBufferSize()
+        public UInt32? ReadWriteBufferSize()
         {
-            return ReadStringParam("WBS\0");
+            byte[] Bytes = ReadParam("WBS\0");
+            if (Bytes == null || Bytes.Length != 4)
+            {
+                return null;
+            }
+
+            return BitConverter.ToUInt32(Bytes.Reverse().ToArray());
         }
 
         public void Relock()
@@ -607,30 +854,6 @@ namespace UnifiedFlashingPlatform
             ExecuteRawVoidMethod(Request);
         }
 
-        public ulong GetLogSize()
-        {
-            byte[] Request = new byte[0x10];
-            string Header = ReadParamSignature; // NOKXFR
-            const string Param = "LZ\0\0";
-
-            Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
-            Buffer.BlockCopy(Encoding.ASCII.GetBytes(Param), 0, Request, 7, Param.Length);
-
-            Request[14] = 1;
-            Request[15] = 1;
-
-            byte[] Response = ExecuteRawMethod(Request);
-            if ((Response == null) || (Response.Length < 0x10))
-            {
-                return 0;
-            }
-
-            byte[] Result = new byte[Response[0x10]];
-            Buffer.BlockCopy(Response, 0x11, Result, 0, Response[0x10]);
-
-            return BitConverter.ToUInt64(Result.Reverse().ToArray(), 0);
-        }
-
         // WIP!
         public string ReadLog()
         {
@@ -638,7 +861,7 @@ namespace UnifiedFlashingPlatform
             string Header = GetLogsSignature;
             ulong BufferSize = 0xF000 - 0xC;
 
-            ulong Length = GetLogSize();
+            ulong Length = ReadLogSize(LogType.Flashing)!.Value;
             if (Length == 0)
             {
                 return null;
