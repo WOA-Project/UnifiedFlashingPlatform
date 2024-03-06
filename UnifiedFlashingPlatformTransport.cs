@@ -125,14 +125,6 @@ namespace UnifiedFlashingPlatform
             return Encoding.ASCII.GetString(Bytes).Trim('\0');
         }
 
-        public enum AppType : byte
-        {
-            Min,
-            UEFI,
-            BOOT,
-            Max
-        };
-
         public AppType ReadAppType()
         {
             byte[] Bytes = ReadParam("APPT");
@@ -147,20 +139,6 @@ namespace UnifiedFlashingPlatform
             }
 
             return AppType.Min;
-        }
-
-        public struct ResetProtectionInfo
-        {
-            public bool IsResetProtectionEnabled;
-            public uint MajorVersion;
-            public uint MinorVersion;
-
-            public override readonly string ToString()
-            {
-                return "IsResetProtectionEnabled: " + IsResetProtectionEnabled +
-                    " - MajorVersion: " + MajorVersion +
-                    " - MinorVersion: " + MinorVersion;
-            }
         }
 
         public ResetProtectionInfo? ReadResetProtection()
@@ -261,28 +239,6 @@ namespace UnifiedFlashingPlatform
         public string ReadDeviceProperties()
         {
             return ReadStringParam("DPR\0");
-        }
-
-        public struct DeviceTargetingInfo
-        {
-            public string Manufacturer;
-            public string Family;
-            public string ProductName;
-            public string ProductVersion;
-            public string SKUNumber;
-            public string BaseboardManufacturer;
-            public string BaseboardProduct;
-
-            public override readonly string ToString()
-            {
-                return "Manufacturer: " + Manufacturer +
-                    " - Family: " + Family +
-                    " - Product Name: " + ProductName +
-                    " - Product Version: " + ProductVersion +
-                    " - SKU Number: " + SKUNumber +
-                    " - Baseboard Manufacturer: " + BaseboardManufacturer +
-                    " - Baseboard Product: " + BaseboardProduct;
-            }
         }
 
         public DeviceTargetingInfo? ReadDeviceTargetInfo()
@@ -398,22 +354,6 @@ namespace UnifiedFlashingPlatform
             return BitConverter.ToUInt32(Bytes.Reverse().ToArray());
         }
 
-        public struct FlashAppInfo
-        {
-            public byte ProtocolMajorVersion;
-            public byte ProtocolMinorVersion;
-            public byte ImplementationMajorVersion;
-            public byte ImplementationMinorVersion;
-
-            public override readonly string ToString()
-            {
-                return "ProtocolMajorVersion: " + ProtocolMajorVersion +
-                    " - ProtocolMinorVersion: " + ProtocolMinorVersion +
-                    " - ImplementationMajorVersion: " + ImplementationMajorVersion +
-                    " - ImplementationMinorVersion: " + ImplementationMinorVersion;
-            }
-        }
-
         public FlashAppInfo? ReadFlashAppInfo()
         {
             byte[] Bytes = ReadParam("FAI\0");
@@ -492,34 +432,6 @@ namespace UnifiedFlashingPlatform
             }
 
             return Bytes[0] == 1;
-        }
-
-        [Flags]
-        public enum UefiVariableAttributes : uint
-        {
-            EfiVariableNone,
-            EfiVariableNonVolatile,
-            EfiVariableBootServiceAccess,
-            EfiVariableRuntimeAccess = 4U,
-            EfiVariableHardwareErrorRecord = 8U,
-            EfiVariableAuthenticatedWriteAccess = 16U,
-            EfiVariableTimeBasedAuthenticatedWriteAccess = 32U,
-            EfiVariableAppendWrite = 64U,
-            EfiVariableEnhancedAuthenticatedAccess = 128U
-        }
-
-        public struct UefiVariable
-        {
-            public UefiVariableAttributes Attributes;
-            public uint DataSize;
-            public byte[] Data;
-
-            public override readonly string ToString()
-            {
-                return "Attributes: " + Attributes +
-                            " - DataSize: " + DataSize +
-                                               " - Data: " + BitConverter.ToString(Data);
-            }
         }
 
         public UefiVariable? ReadUEFIVariable(Guid Guid, string Name, uint Size)
@@ -601,14 +513,6 @@ namespace UnifiedFlashingPlatform
             return BitConverter.ToUInt64(Bytes.Reverse().ToArray());
         }
 
-        public enum DeviceLogType
-        {
-            Min,
-            Flashing,
-            Servicing,
-            Max
-        }
-
         public UInt64? ReadLogSize(DeviceLogType LogType)
         {
             byte[] Request = new byte[0x10];
@@ -638,12 +542,6 @@ namespace UnifiedFlashingPlatform
         public string ReadMacAddress()
         {
             return ReadStringParam("MAC\0");
-        }
-
-        public enum Mode : byte
-        {
-            DiagnosticMode,
-            Max
         }
 
         public UInt32? ReadModeData(Mode Mode)
@@ -779,18 +677,6 @@ namespace UnifiedFlashingPlatform
         {
             // TODO
             return ReadStringParam("UKTF");
-        }
-
-        public struct USBSpeed
-        {
-            public byte CurrentUSBSpeed;
-            public byte MaxUSBSpeed;
-
-            public override readonly string ToString()
-            {
-                return "CurrentUSBSpeed: " + CurrentUSBSpeed +
-                            " - MaxUSBSpeed: " + MaxUSBSpeed;
-            }
         }
 
         public USBSpeed? ReadUSBSpeed()
