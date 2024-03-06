@@ -31,10 +31,10 @@ namespace UnifiedFlashingPlatform
     public partial class UnifiedFlashingPlatformTransport : IDisposable
     {
         private bool Disposed = false;
-        private readonly USBDevice USBDevice = null;
-        private USBPipe InputPipe = null;
-        private USBPipe OutputPipe = null;
-        private object UsbLock = new();
+        private readonly USBDevice? USBDevice = null;
+        private readonly USBPipe? InputPipe = null;
+        private readonly USBPipe? OutputPipe = null;
+        private readonly object UsbLock = new();
 
         public UnifiedFlashingPlatformTransport(string DevicePath)
         {
@@ -67,7 +67,7 @@ namespace UnifiedFlashingPlatform
         public byte[] ExecuteRawMethod(byte[] RawMethod, int Length)
         {
             byte[] Buffer = new byte[0xF000]; // Should be at least 0x4408 for receiving the GPT packet.
-            byte[] Result = null;
+            byte[]? Result = null;
             lock (UsbLock)
             {
                 OutputPipe.Write(RawMethod, 0, Length);
@@ -117,55 +117,32 @@ namespace UnifiedFlashingPlatform
         public string ReadStringParam(string Param)
         {
             byte[] Bytes = ReadParam(Param);
-            if (Bytes == null)
-            {
-                return null;
-            }
-
-            return Encoding.ASCII.GetString(Bytes).Trim('\0');
+            return Bytes == null ? null : Encoding.ASCII.GetString(Bytes).Trim('\0');
         }
 
         public AppType ReadAppType()
         {
             byte[] Bytes = ReadParam("APPT");
-            if (Bytes == null)
-            {
-                return AppType.Min;
-            }
-
-            if (Bytes[0] == 1)
-            {
-                return AppType.UEFI;
-            }
-
-            return AppType.Min;
+            return Bytes == null ? AppType.Min : Bytes[0] == 1 ? AppType.UEFI : AppType.Min;
         }
 
         public ResetProtectionInfo? ReadResetProtection()
         {
             byte[] Bytes = ReadParam("ATRP");
-            if (Bytes == null)
-            {
-                return null;
-            }
-
-            return new ResetProtectionInfo()
-            {
-                IsResetProtectionEnabled = Bytes[0] == 1,
-                MajorVersion = BitConverter.ToUInt32(Bytes[1..5].Reverse().ToArray()),
-                MinorVersion = BitConverter.ToUInt32(Bytes[5..9].Reverse().ToArray())
-            };
+            return Bytes == null
+                ? null
+                : new ResetProtectionInfo()
+                {
+                    IsResetProtectionEnabled = Bytes[0] == 1,
+                    MajorVersion = BitConverter.ToUInt32(Bytes[1..5].Reverse().ToArray()),
+                    MinorVersion = BitConverter.ToUInt32(Bytes[5..9].Reverse().ToArray())
+                };
         }
 
         public bool? ReadBitlocker()
         {
             byte[] Bytes = ReadParam("BITL");
-            if (Bytes == null)
-            {
-                return null;
-            }
-
-            return Bytes[0] == 1;
+            return Bytes == null ? null : Bytes[0] == 1;
         }
 
         public string ReadBuildInfo()
@@ -176,26 +153,16 @@ namespace UnifiedFlashingPlatform
         public ushort? ReadCurrentBootOption()
         {
             byte[] Bytes = ReadParam("CUFO");
-            if (Bytes == null || Bytes.Length != 2)
-            {
-                return null;
-            }
-
-            return BitConverter.ToUInt16(Bytes.Reverse().ToArray());
+            return Bytes == null || Bytes.Length != 2 ? null : BitConverter.ToUInt16(Bytes.Reverse().ToArray());
         }
 
         public bool? ReadDeviceAsyncSupport()
         {
             byte[] Bytes = ReadParam("DAS\0");
-            if (Bytes == null || Bytes.Length != 2)
-            {
-                return null;
-            }
-
-            return BitConverter.ToUInt16(Bytes.Reverse().ToArray()) == 1;
+            return Bytes == null || Bytes.Length != 2 ? null : BitConverter.ToUInt16(Bytes.Reverse().ToArray()) == 1;
         }
 
-        public UInt64? ReadDirectoryEntriesSize(string PartitionName, string DirectoryName)
+        public ulong? ReadDirectoryEntriesSize(string PartitionName, string DirectoryName)
         {
             if (PartitionName.Length > 35)
             {
@@ -249,15 +216,15 @@ namespace UnifiedFlashingPlatform
                 return null;
             }
 
-            UInt16 ManufacturerLength = BitConverter.ToUInt16(Bytes[0..2].Reverse().ToArray());
-            UInt16 FamilyLength = BitConverter.ToUInt16(Bytes[2..4].Reverse().ToArray());
-            UInt16 ProductNameLength = BitConverter.ToUInt16(Bytes[4..6].Reverse().ToArray());
-            UInt16 ProductVersionLength = BitConverter.ToUInt16(Bytes[6..8].Reverse().ToArray());
-            UInt16 SKUNumberLength = BitConverter.ToUInt16(Bytes[8..10].Reverse().ToArray());
-            UInt16 BaseboardManufacturerLength = BitConverter.ToUInt16(Bytes[10..12].Reverse().ToArray());
-            UInt16 BaseboardProductLength = BitConverter.ToUInt16(Bytes[12..14].Reverse().ToArray());
+            ushort ManufacturerLength = BitConverter.ToUInt16(Bytes[0..2].Reverse().ToArray());
+            ushort FamilyLength = BitConverter.ToUInt16(Bytes[2..4].Reverse().ToArray());
+            ushort ProductNameLength = BitConverter.ToUInt16(Bytes[4..6].Reverse().ToArray());
+            ushort ProductVersionLength = BitConverter.ToUInt16(Bytes[6..8].Reverse().ToArray());
+            ushort SKUNumberLength = BitConverter.ToUInt16(Bytes[8..10].Reverse().ToArray());
+            ushort BaseboardManufacturerLength = BitConverter.ToUInt16(Bytes[10..12].Reverse().ToArray());
+            ushort BaseboardProductLength = BitConverter.ToUInt16(Bytes[12..14].Reverse().ToArray());
 
-            Int32 CurrentOffset = 14;
+            int CurrentOffset = 14;
             string Manufacturer = Encoding.ASCII.GetString(Bytes[CurrentOffset..(CurrentOffset + ManufacturerLength)]);
 
             CurrentOffset += ManufacturerLength;
@@ -293,82 +260,54 @@ namespace UnifiedFlashingPlatform
         //
         // Gets the last FFU Flash Operation Data verify speed in KB/s
         //
-        public UInt32? ReadDataVerifySpeed()
+        public uint? ReadDataVerifySpeed()
         {
             byte[] Bytes = ReadParam("DTSP");
-            if (Bytes == null || Bytes.Length != 4)
-            {
-                return null;
-            }
-
-            return BitConverter.ToUInt32(Bytes.Reverse().ToArray());
+            return Bytes == null || Bytes.Length != 4 ? null : BitConverter.ToUInt32(Bytes.Reverse().ToArray());
         }
 
         public Guid? ReadDeviceID()
         {
             byte[] Bytes = ReadParam("DUI\0");
-            if (Bytes == null || Bytes.Length != 16)
-            {
-                return null;
-            }
-
-            return new Guid(Bytes);
+            return Bytes == null || Bytes.Length != 16 ? null : new Guid(Bytes);
         }
 
-        public UInt32? ReadEmmcTestResult()
+        public uint? ReadEmmcTestResult()
         {
             byte[] Bytes = ReadParam("EMMT");
-            if (Bytes == null || Bytes.Length != 4)
-            {
-                return null;
-            }
-
-            return BitConverter.ToUInt32(Bytes.Reverse().ToArray());
+            return Bytes == null || Bytes.Length != 4 ? null : BitConverter.ToUInt32(Bytes.Reverse().ToArray());
         }
 
         //
         // Gets the eMMC Size in sectors, if present
         //
-        public UInt32? ReadEmmcSize()
+        public uint? ReadEmmcSize()
         {
             byte[] Bytes = ReadParam("EMS\0");
-            if (Bytes == null || Bytes.Length != 4)
-            {
-                return null;
-            }
-
-            return BitConverter.ToUInt32(Bytes.Reverse().ToArray());
+            return Bytes == null || Bytes.Length != 4 ? null : BitConverter.ToUInt32(Bytes.Reverse().ToArray());
         }
 
         //
         // Gets the eMMC Write speed in KB/s
         //
-        public UInt32? ReadEmmcWriteSpeed()
+        public uint? ReadEmmcWriteSpeed()
         {
             byte[] Bytes = ReadParam("EMWS");
-            if (Bytes == null || Bytes.Length != 4)
-            {
-                return null;
-            }
-
-            return BitConverter.ToUInt32(Bytes.Reverse().ToArray());
+            return Bytes == null || Bytes.Length != 4 ? null : BitConverter.ToUInt32(Bytes.Reverse().ToArray());
         }
 
         public FlashAppInfo? ReadFlashAppInfo()
         {
             byte[] Bytes = ReadParam("FAI\0");
-            if (Bytes == null || Bytes.Length != 6 || Bytes[0] != 2)
-            {
-                return null;
-            }
-
-            return new FlashAppInfo()
-            {
-                ProtocolMajorVersion = Bytes[1],
-                ProtocolMinorVersion = Bytes[2],
-                ImplementationMajorVersion = Bytes[3],
-                ImplementationMinorVersion = Bytes[4]
-            };
+            return Bytes == null || Bytes.Length != 6 || Bytes[0] != 2
+                ? null
+                : new FlashAppInfo()
+                {
+                    ProtocolMajorVersion = Bytes[1],
+                    ProtocolMinorVersion = Bytes[2],
+                    ImplementationMajorVersion = Bytes[3],
+                    ImplementationMinorVersion = Bytes[4]
+                };
         }
 
         //
@@ -380,18 +319,13 @@ namespace UnifiedFlashingPlatform
             return ReadStringParam("FO\0\0");
         }
 
-        public UInt32? ReadFlashingStatus()
+        public uint? ReadFlashingStatus()
         {
             byte[] Bytes = ReadParam("FS\0\0");
-            if (Bytes == null || Bytes.Length != 4)
-            {
-                return null;
-            }
-
-            return BitConverter.ToUInt32(Bytes.Reverse().ToArray());
+            return Bytes == null || Bytes.Length != 4 ? null : BitConverter.ToUInt32(Bytes.Reverse().ToArray());
         }
 
-        public UInt64? ReadFileSize(string PartitionName, string FileName)
+        public ulong? ReadFileSize(string PartitionName, string FileName)
         {
             if (PartitionName.Length > 35)
             {
@@ -426,17 +360,12 @@ namespace UnifiedFlashingPlatform
         public bool? ReadSecureBootStatus()
         {
             byte[] Bytes = ReadParam("GSBS");
-            if (Bytes == null)
-            {
-                return null;
-            }
-
-            return Bytes[0] == 1;
+            return Bytes == null ? null : Bytes[0] == 1;
         }
 
         public UefiVariable? ReadUEFIVariable(Guid Guid, string Name, uint Size)
         {
-            byte[] Request = new byte[39 + (Name.Length + 1) * 2];
+            byte[] Request = new byte[39 + ((Name.Length + 1) * 2)];
             string Header = ReadParamSignature; // NOKXFR
             string Param = "GUFV";
 
@@ -469,7 +398,7 @@ namespace UnifiedFlashingPlatform
 
         public uint? ReadUEFIVariableSize(Guid Guid, string Name)
         {
-            byte[] Request = new byte[39 + (Name.Length + 1) * 2];
+            byte[] Request = new byte[39 + ((Name.Length + 1) * 2)];
             string Header = "NOKXFR"; // NOKXFR
             string Param = "GUVS";
 
@@ -491,29 +420,19 @@ namespace UnifiedFlashingPlatform
 
             byte[] Result = new byte[Response[0x10]];
             Buffer.BlockCopy(Response, 0x11, Result, 0, Response[0x10]);
-            if (Result == null || Result.Length != 4)
-            {
-                return null;
-            }
-
-            return BitConverter.ToUInt32(Result.Reverse().ToArray());
+            return Result == null || Result.Length != 4 ? null : BitConverter.ToUInt32(Result.Reverse().ToArray());
         }
 
         //
         // Returns the largest memory region in bytes available for use by UFP
         //
-        public UInt64? ReadLargestMemoryRegion()
+        public ulong? ReadLargestMemoryRegion()
         {
             byte[] Bytes = ReadParam("LGMR");
-            if (Bytes == null || Bytes.Length != 8)
-            {
-                return null;
-            }
-
-            return BitConverter.ToUInt64(Bytes.Reverse().ToArray());
+            return Bytes == null || Bytes.Length != 8 ? null : BitConverter.ToUInt64(Bytes.Reverse().ToArray());
         }
 
-        public UInt64? ReadLogSize(DeviceLogType LogType)
+        public ulong? ReadLogSize(DeviceLogType LogType)
         {
             byte[] Request = new byte[0x10];
             string Header = ReadParamSignature; // NOKXFR
@@ -544,7 +463,7 @@ namespace UnifiedFlashingPlatform
             return ReadStringParam("MAC\0");
         }
 
-        public UInt32? ReadModeData(Mode Mode)
+        public uint? ReadModeData(Mode Mode)
         {
             byte[] Request = new byte[0x10];
             string Header = ReadParamSignature; // NOKXFR
@@ -563,12 +482,7 @@ namespace UnifiedFlashingPlatform
 
             byte[] Result = new byte[Response[0x10]];
             Buffer.BlockCopy(Response, 0x11, Result, 0, Response[0x10]);
-            if (Result == null || Result.Length != 4)
-            {
-                return null;
-            }
-
-            return BitConverter.ToUInt32(Result.Reverse().ToArray());
+            return Result == null || Result.Length != 4 ? null : BitConverter.ToUInt32(Result.Reverse().ToArray());
         }
 
         public string ReadProcessorManufacturer()
@@ -579,15 +493,10 @@ namespace UnifiedFlashingPlatform
         //
         // Gets the SD Card Size in sectors, if present
         //
-        public UInt32? ReadSDCardSize()
+        public uint? ReadSDCardSize()
         {
             byte[] Bytes = ReadParam("SDS\0");
-            if (Bytes == null || Bytes.Length != 4)
-            {
-                return null;
-            }
-
-            return BitConverter.ToUInt32(Bytes.Reverse().ToArray());
+            return Bytes == null || Bytes.Length != 4 ? null : BitConverter.ToUInt32(Bytes.Reverse().ToArray());
         }
 
         public string ReadSupportedFFUProtocolInfo()
@@ -605,26 +514,16 @@ namespace UnifiedFlashingPlatform
         public Guid? ReadSerialNumber()
         {
             byte[] Bytes = ReadParam("SN\0\0");
-            if (Bytes == null || Bytes.Length != 16)
-            {
-                return null;
-            }
-
-            return new Guid(Bytes);
+            return Bytes == null || Bytes.Length != 16 ? null : new Guid(Bytes);
         }
 
         //
         // Returns the size of system memory in kB
         //
-        public UInt64? ReadSizeOfSystemMemory()
+        public ulong? ReadSizeOfSystemMemory()
         {
             byte[] Bytes = ReadParam("SOSM");
-            if (Bytes == null || Bytes.Length != 8)
-            {
-                return null;
-            }
-
-            return BitConverter.ToUInt64(Bytes.Reverse().ToArray());
+            return Bytes == null || Bytes.Length != 8 ? null : BitConverter.ToUInt64(Bytes.Reverse().ToArray());
         }
 
         public string ReadSecurityStatus()
@@ -639,15 +538,10 @@ namespace UnifiedFlashingPlatform
             return ReadStringParam("TELS");
         }
 
-        public UInt32? ReadTransferSize()
+        public uint? ReadTransferSize()
         {
             byte[] Bytes = ReadParam("TS\0\0");
-            if (Bytes == null || Bytes.Length != 4)
-            {
-                return null;
-            }
-
-            return BitConverter.ToUInt32(Bytes.Reverse().ToArray());
+            return Bytes == null || Bytes.Length != 4 ? null : BitConverter.ToUInt32(Bytes.Reverse().ToArray());
         }
 
         //
@@ -682,27 +576,19 @@ namespace UnifiedFlashingPlatform
         public USBSpeed? ReadUSBSpeed()
         {
             byte[] Bytes = ReadParam("USBS");
-            if (Bytes == null || Bytes.Length != 2)
-            {
-                return null;
-            }
-
-            return new USBSpeed()
-            {
-                CurrentUSBSpeed = Bytes[0],
-                MaxUSBSpeed = Bytes[1]
-            };
+            return Bytes == null || Bytes.Length != 2
+                ? null
+                : new USBSpeed()
+                {
+                    CurrentUSBSpeed = Bytes[0],
+                    MaxUSBSpeed = Bytes[1]
+                };
         }
 
-        public UInt32? ReadWriteBufferSize()
+        public uint? ReadWriteBufferSize()
         {
             byte[] Bytes = ReadParam("WBS\0");
-            if (Bytes == null || Bytes.Length != 4)
-            {
-                return null;
-            }
-
-            return BitConverter.ToUInt32(Bytes.Reverse().ToArray());
+            return Bytes == null || Bytes.Length != 4 ? null : BitConverter.ToUInt32(Bytes.Reverse().ToArray());
         }
 
         public void Relock()
@@ -710,7 +596,7 @@ namespace UnifiedFlashingPlatform
             byte[] Request = new byte[7];
             string Header = RelockSignature; // NOKXFO
             Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
-            ExecuteRawMethod(Request);
+            _ = ExecuteRawMethod(Request);
         }
 
         public void MassStorage()
@@ -718,7 +604,7 @@ namespace UnifiedFlashingPlatform
             byte[] Request = new byte[7];
             string Header = MassStorageSignature; // NOKM
             Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
-            ExecuteRawMethod(Request);
+            _ = ExecuteRawMethod(Request);
         }
 
         public void RebootPhone()
@@ -726,7 +612,7 @@ namespace UnifiedFlashingPlatform
             byte[] Request = new byte[7];
             string Header = $"{SwitchModeSignature}R"; // NOKXCBR
             Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
-            ExecuteRawMethod(Request);
+            _ = ExecuteRawMethod(Request);
         }
 
         public void SwitchToUFP()
@@ -734,7 +620,7 @@ namespace UnifiedFlashingPlatform
             byte[] Request = new byte[7];
             string Header = $"{SwitchModeSignature}U"; // NOKXCBU
             Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
-            ExecuteRawMethod(Request);
+            _ = ExecuteRawMethod(Request);
         }
 
         public void ContinueBoot()
@@ -742,7 +628,7 @@ namespace UnifiedFlashingPlatform
             byte[] Request = new byte[7];
             string Header = $"{SwitchModeSignature}W"; // NOKXCBW
             Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
-            ExecuteRawMethod(Request);
+            _ = ExecuteRawMethod(Request);
         }
 
         public void PowerOff()
@@ -771,7 +657,7 @@ namespace UnifiedFlashingPlatform
             Buffer.BlockCopy(BitConverter.GetBytes(Row).Reverse().ToArray(), 0, Request, 6, 2);
             Buffer.BlockCopy(MessageBuffer, 0, Request, 8, MessageBuffer.Length);
 
-            ExecuteRawMethod(Request);
+            _ = ExecuteRawMethod(Request);
         }
 
         public void ClearScreen()
@@ -779,7 +665,7 @@ namespace UnifiedFlashingPlatform
             byte[] Request = new byte[6];
             string Header = ClearScreenSignature; // NOKXCC
             Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
-            ExecuteRawMethod(Request);
+            _ = ExecuteRawMethod(Request);
         }
 
         public byte[] Echo(byte[] DataPayload)

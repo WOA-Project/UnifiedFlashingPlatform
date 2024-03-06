@@ -31,16 +31,16 @@ namespace UnifiedFlashingPlatform
     public class GPT
     {
         private byte[] GPTBuffer;
-        private readonly UInt32 HeaderOffset;
-        private readonly UInt32 HeaderSize;
-        private UInt32 TableOffset;
-        private UInt32 TableSize;
-        private readonly UInt32 PartitionEntrySize;
-        private readonly UInt32 MaxPartitions;
-        internal UInt64 FirstUsableSector;
-        internal UInt64 LastUsableSector;
+        private readonly uint HeaderOffset;
+        private readonly uint HeaderSize;
+        private uint TableOffset;
+        private uint TableSize;
+        private readonly uint PartitionEntrySize;
+        private readonly uint MaxPartitions;
+        internal ulong FirstUsableSector;
+        internal ulong LastUsableSector;
         internal bool HasChanged = false;
-        internal UInt32 SectorSize;
+        internal uint SectorSize;
 
         [XmlElement("Partition")]
         public List<Partition> Partitions = new();
@@ -49,17 +49,17 @@ namespace UnifiedFlashingPlatform
         {
         }
 
-        internal GPT(byte[] GPTBuffer, UInt32 SectorSize)
+        internal GPT(byte[] GPTBuffer, uint SectorSize)
         {
             this.GPTBuffer = GPTBuffer;
             this.SectorSize = SectorSize;
-            UInt32? TempHeaderOffset = ByteOperations.FindAscii(GPTBuffer, "EFI PART");
+            uint? TempHeaderOffset = ByteOperations.FindAscii(GPTBuffer, "EFI PART");
             if (TempHeaderOffset == null)
             {
                 throw new WPinternalsException("Bad GPT", "The GPT read isn't valid. Couldn't find the text \"EFI PART\".");
             }
 
-            HeaderOffset = (UInt32)TempHeaderOffset;
+            HeaderOffset = (uint)TempHeaderOffset;
             HeaderSize = ByteOperations.ReadUInt32(GPTBuffer, HeaderOffset + 0x0C);
             TableOffset = HeaderOffset + SectorSize;
             FirstUsableSector = ByteOperations.ReadUInt64(GPTBuffer, HeaderOffset + 0x28);
@@ -72,23 +72,25 @@ namespace UnifiedFlashingPlatform
                 throw new WPinternalsException("Bad GPT", "The GPT read isn't valid. The sizes defined in the GPT header exceed the provided GPT size.");
             }
 
-            UInt32 PartitionOffset = TableOffset;
+            uint PartitionOffset = TableOffset;
 
             while (PartitionOffset < (TableOffset + TableSize))
             {
-                string Name = ByteOperations.ReadUnicodeString(GPTBuffer, PartitionOffset + 0x38, 0x48).TrimEnd(new char[] {(char)0, ' '});
+                string Name = ByteOperations.ReadUnicodeString(GPTBuffer, PartitionOffset + 0x38, 0x48).TrimEnd(new char[] { (char)0, ' ' });
                 if (Name.Length == 0)
                 {
                     break;
                 }
 
-                Partition CurrentPartition = new();
-                CurrentPartition.Name = Name;
-                CurrentPartition.FirstSector = ByteOperations.ReadUInt64(GPTBuffer, PartitionOffset + 0x20);
-                CurrentPartition.LastSector = ByteOperations.ReadUInt64(GPTBuffer, PartitionOffset + 0x28);
-                CurrentPartition.PartitionTypeGuid = ByteOperations.ReadGuid(GPTBuffer, PartitionOffset + 0x00);
-                CurrentPartition.PartitionGuid = ByteOperations.ReadGuid(GPTBuffer, PartitionOffset + 0x10);
-                CurrentPartition.Attributes = ByteOperations.ReadUInt64(GPTBuffer, PartitionOffset + 0x30);
+                Partition CurrentPartition = new()
+                {
+                    Name = Name,
+                    FirstSector = ByteOperations.ReadUInt64(GPTBuffer, PartitionOffset + 0x20),
+                    LastSector = ByteOperations.ReadUInt64(GPTBuffer, PartitionOffset + 0x28),
+                    PartitionTypeGuid = ByteOperations.ReadGuid(GPTBuffer, PartitionOffset + 0x00),
+                    PartitionGuid = ByteOperations.ReadGuid(GPTBuffer, PartitionOffset + 0x10),
+                    Attributes = ByteOperations.ReadUInt64(GPTBuffer, PartitionOffset + 0x30)
+                };
                 Partitions.Add(CurrentPartition);
                 PartitionOffset += PartitionEntrySize;
             }
@@ -156,7 +158,7 @@ namespace UnifiedFlashingPlatform
                 SBL2.PartitionTypeGuid = HackPartition.PartitionTypeGuid;
                 SBL2.PartitionGuid = HackPartition.PartitionGuid;
 
-                Partitions.Remove(HackPartition);
+                _ = Partitions.Remove(HackPartition);
 
                 SBL1.LastSector++;
             }
@@ -179,7 +181,7 @@ namespace UnifiedFlashingPlatform
                 Array.Clear(GPTBuffer, (int)TableOffset, (int)TableSize);
             }
 
-            UInt32 PartitionOffset = TableOffset;
+            uint PartitionOffset = TableOffset;
             foreach (Partition CurrentPartition in Partitions)
             {
                 ByteOperations.WriteGuid(GPTBuffer, PartitionOffset + 0x00, CurrentPartition.PartitionTypeGuid);
@@ -210,7 +212,7 @@ namespace UnifiedFlashingPlatform
             MergePartitions(tr.ReadToEnd(), RoundToChunks);
         }
 
-        internal void MergePartitions(string Xml, bool RoundToChunks, ZipArchive Archive = null)
+        internal void MergePartitions(string Xml, bool RoundToChunks, ZipArchive? Archive = null)
         {
             GPT GptToMerge;
             if (Xml == null)
@@ -352,7 +354,7 @@ namespace UnifiedFlashingPlatform
                         if ((NewPartition == null) || (NewPartition.FirstSector == 0))
                         {
                             DynamicPartitions.Insert(0, OldPartition);
-                            this.Partitions.Remove(OldPartition);
+                            _ = Partitions.Remove(OldPartition);
                         }
                         else
                         {
@@ -370,8 +372,8 @@ namespace UnifiedFlashingPlatform
             // The partitions in the new GPT data will be applied to the current partition-table.
             // Existing partitions, which are overwritten by the new partitions will be removed from the existing GPT.
             // Existing partition with the same name in the existing GPT is reused (guids and attribs remain, if not specified).
-            UInt64 LowestSector = 0;
-            Partition DPP = this.GetPartition("DPP");
+            ulong LowestSector = 0;
+            Partition DPP = GetPartition("DPP");
             if (DPP != null)
             {
                 LowestSector = DPP.LastSector + 1;
@@ -391,14 +393,14 @@ namespace UnifiedFlashingPlatform
                     throw new WPinternalsException("Bad sector alignment for partition: " + NewPartition.Name + ". The partition is located before DPP.");
                 }
 
-                Partition CurrentPartition = this.GetPartition(NewPartition.Name);
+                Partition CurrentPartition = GetPartition(NewPartition.Name);
                 if (CurrentPartition == null)
                 {
                     CurrentPartition = new Partition
                     {
                         Name = NewPartition.Name
                     };
-                    this.Partitions.Add(CurrentPartition);
+                    Partitions.Add(CurrentPartition);
                     HasChanged = true;
                 }
 
@@ -448,11 +450,11 @@ namespace UnifiedFlashingPlatform
                     CurrentPartition.PartitionTypeGuid = Guid.NewGuid();
                 }
 
-                for (int i = this.Partitions.Count - 1; i >= 0; i--)
+                for (int i = Partitions.Count - 1; i >= 0; i--)
                 {
-                    if (this.Partitions[i] != CurrentPartition && (CurrentPartition.FirstSector <= this.Partitions[i].LastSector) && (CurrentPartition.LastSector >= this.Partitions[i].FirstSector))
+                    if (Partitions[i] != CurrentPartition && (CurrentPartition.FirstSector <= Partitions[i].LastSector) && (CurrentPartition.LastSector >= Partitions[i].FirstSector))
                     {
-                        this.Partitions.RemoveAt(i);
+                        Partitions.RemoveAt(i);
                         HasChanged = true;
                     }
                 }
@@ -462,7 +464,7 @@ namespace UnifiedFlashingPlatform
             {
                 // All partitions listed in the archive, which are present in the existing GPT, should overwrite the existing partition.
                 // Check if the sizes of the partitions in the archive do not exceed the size of the partition, as listed in the GPT.
-                foreach (Partition OldPartition in this.Partitions)
+                foreach (Partition OldPartition in Partitions)
                 {
                     ZipArchiveEntry Entry = Archive.Entries.FirstOrDefault(e => string.Equals(e.Name, OldPartition.Name, StringComparison.CurrentCultureIgnoreCase) || e.Name.StartsWith(OldPartition.Name + ".", true, System.Globalization.CultureInfo.GetCultureInfo("en-US")));
                     if (Entry != null)
@@ -476,8 +478,8 @@ namespace UnifiedFlashingPlatform
                         catch { }
                         DecompressedStream.Close();
 
-                        UInt64 MaxPartitionSizeInSectors = OldPartition.SizeInSectors;
-                        Partition NextPartition = this.Partitions.Where(p => p.FirstSector > OldPartition.FirstSector).OrderBy(p => p.FirstSector).FirstOrDefault();
+                        ulong MaxPartitionSizeInSectors = OldPartition.SizeInSectors;
+                        Partition NextPartition = Partitions.Where(p => p.FirstSector > OldPartition.FirstSector).OrderBy(p => p.FirstSector).FirstOrDefault();
                         if (NextPartition != null)
                         {
                             MaxPartitionSizeInSectors = NextPartition.FirstSector - OldPartition.FirstSector;
@@ -498,15 +500,15 @@ namespace UnifiedFlashingPlatform
 
                 // All remaining partitions in the archive, which were listed in the original GPT, 
                 // should be added at the end of the partition-table.
-                UInt64 FirstFreeSector = 0x5000;
-                if (this.Partitions.Count > 0)
+                ulong FirstFreeSector = 0x5000;
+                if (Partitions.Count > 0)
                 {
-                    FirstFreeSector = this.Partitions.Max(p => p.LastSector) + 1;
+                    FirstFreeSector = Partitions.Max(p => p.LastSector) + 1;
 
                     // Always start a new partition on a new chunk (0x100 sector boundary), to be more flexible during custom flash
                     if (RoundToChunks && (((double)FirstFreeSector % 0x100) != 0))
                     {
-                        FirstFreeSector = (UInt64)(Math.Ceiling((double)FirstFreeSector / 0x100) * 0x100);
+                        FirstFreeSector = (ulong)(Math.Ceiling((double)FirstFreeSector / 0x100) * 0x100);
                     }
                 }
                 foreach (Partition NewPartition in DynamicPartitions)
@@ -530,18 +532,18 @@ namespace UnifiedFlashingPlatform
                         NewPartition.SizeInSectors = StreamLengthInSectors;
                         HasChanged = true;
                     }
-                    this.Partitions.Add(NewPartition);
+                    Partitions.Add(NewPartition);
                     FirstFreeSector += StreamLengthInSectors;
 
                     // Always start a new partition on a new chunk (0x100 sector boundary), to be more flexible during custom flash
                     if (RoundToChunks && (((double)FirstFreeSector % 0x100) != 0))
                     {
-                        FirstFreeSector = (UInt64)(Math.Ceiling((double)FirstFreeSector / 0x100) * 0x100);
+                        FirstFreeSector = (ulong)(Math.Ceiling((double)FirstFreeSector / 0x100) * 0x100);
                     }
                 }
             }
 
-            Rebuild();
+            _ = Rebuild();
         }
 
         internal void WritePartitions(string Path)
@@ -549,7 +551,7 @@ namespace UnifiedFlashingPlatform
             string DirPath = System.IO.Path.GetDirectoryName(Path);
             if (!string.IsNullOrEmpty(DirPath) && !Directory.Exists(DirPath))
             {
-                Directory.CreateDirectory(DirPath);
+                _ = Directory.CreateDirectory(DirPath);
             }
 
             XmlSerializer x = new(typeof(GPT), "");
@@ -581,7 +583,7 @@ namespace UnifiedFlashingPlatform
         {
             // This is necessary, because the partitions and backup-partitions can exchange.
             // This may cause the startsector to be higher than the maximum allowed sector for flashing with a Lumia V1 programmer (hardcoded in programmer)
-            foreach (string RevisePartitionName in (List<string>)(new(new string[] { "SBL1", "SBL2", "SBL3", "UEFI", "TZ", "RPM", "WINSECAPP" })))
+            foreach (string RevisePartitionName in (List<string>)new(new string[] { "SBL1", "SBL2", "SBL3", "UEFI", "TZ", "RPM", "WINSECAPP" }))
             {
                 Partition RevisePartition = GetPartition(RevisePartitionName);
                 Partition ReviseBackupPartition = GetPartition("BACKUP_" + RevisePartitionName);
@@ -607,30 +609,20 @@ namespace UnifiedFlashingPlatform
 
     public class Partition
     {
-        private UInt64 _SizeInSectors;
-        private UInt64 _FirstSector;
-        private UInt64 _LastSector;
+        private ulong _SizeInSectors;
+        private ulong _FirstSector;
+        private ulong _LastSector;
 
         public string Name;            // 0x48
         public Guid PartitionTypeGuid; // 0x10
         public Guid PartitionGuid;     // 0x10
         [XmlIgnore]
-        internal UInt64 Attributes;      // 0x08
+        internal ulong Attributes;      // 0x08
 
         [XmlIgnore]
-        internal UInt64 SizeInSectors
+        internal ulong SizeInSectors
         {
-            get
-            {
-                if (_SizeInSectors != 0)
-                {
-                    return _SizeInSectors;
-                }
-                else
-                {
-                    return LastSector - FirstSector + 1;
-                }
-            }
+            get => _SizeInSectors != 0 ? _SizeInSectors : LastSector - FirstSector + 1;
             set
             {
                 _SizeInSectors = value;
@@ -642,12 +634,9 @@ namespace UnifiedFlashingPlatform
         }
 
         [XmlIgnore]
-        internal UInt64 FirstSector // 0x08
+        internal ulong FirstSector // 0x08
         {
-            get
-            {
-                return _FirstSector;
-            }
+            get => _FirstSector;
             set
             {
                 _FirstSector = value;
@@ -659,12 +648,9 @@ namespace UnifiedFlashingPlatform
         }
 
         [XmlIgnore]
-        internal UInt64 LastSector // 0x08
+        internal ulong LastSector // 0x08
         {
-            get
-            {
-                return _LastSector;
-            }
+            get => _LastSector;
             set
             {
                 _LastSector = value;
@@ -673,51 +659,27 @@ namespace UnifiedFlashingPlatform
         }
 
         [XmlIgnore]
-        public string Volume
-        {
-            get
-            {
-                return @"\\?\Volume" + PartitionGuid.ToString("b") + @"\";
-            }
-        }
+        public string Volume => @"\\?\Volume" + PartitionGuid.ToString("b") + @"\";
 
         [XmlElement(ElementName = "FirstSector")]
         public string FirstSectorAsString
         {
-            get
-            {
-                return "0x" + FirstSector.ToString("X16");
-            }
-            set
-            {
-                FirstSector = Convert.ToUInt64(value, 16);
-            }
+            get => "0x" + FirstSector.ToString("X16");
+            set => FirstSector = Convert.ToUInt64(value, 16);
         }
 
         [XmlElement(ElementName = "LastSector")]
         public string LastSectorAsString
         {
-            get
-            {
-                return "0x" + LastSector.ToString("X16");
-            }
-            set
-            {
-                LastSector = Convert.ToUInt64(value, 16);
-            }
+            get => "0x" + LastSector.ToString("X16");
+            set => LastSector = Convert.ToUInt64(value, 16);
         }
 
         [XmlElement(ElementName = "Attributes")]
         public string AttributesAsString
         {
-            get
-            {
-                return "0x" + Attributes.ToString("X16");
-            }
-            set
-            {
-                Attributes = Convert.ToUInt64(value, 16);
-            }
+            get => "0x" + Attributes.ToString("X16");
+            set => Attributes = Convert.ToUInt64(value, 16);
         }
     }
 }

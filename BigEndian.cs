@@ -31,17 +31,13 @@ namespace UnifiedFlashingPlatform
             {
                 Bytes = BitConverter.GetBytes((short)Value);
             }
-            else if (Value is ushort)
-            {
-                Bytes = BitConverter.GetBytes((ushort)Value);
-            }
-            else if (Value is int)
-            {
-                Bytes = BitConverter.GetBytes((int)Value);
-            }
             else
             {
-                Bytes = Value is uint ? BitConverter.GetBytes((uint)Value) : throw new NotSupportedException();
+                Bytes = Value is ushort
+                    ? BitConverter.GetBytes((ushort)Value)
+                    : Value is int
+                                    ? BitConverter.GetBytes((int)Value)
+                                    : Value is uint ? BitConverter.GetBytes((uint)Value) : throw new NotSupportedException();
             }
 
             byte[] Result = new byte[Bytes.Length];
@@ -75,7 +71,7 @@ namespace UnifiedFlashingPlatform
             }
         }
 
-        public static UInt16 ToUInt16(byte[] Buffer, int Offset)
+        public static ushort ToUInt16(byte[] Buffer, int Offset)
         {
             byte[] Bytes = new byte[2];
             for (int i = 0; i < 2; i++)
@@ -86,7 +82,7 @@ namespace UnifiedFlashingPlatform
             return BitConverter.ToUInt16(Bytes, 0);
         }
 
-        public static Int16 ToInt16(byte[] Buffer, int Offset)
+        public static short ToInt16(byte[] Buffer, int Offset)
         {
             byte[] Bytes = new byte[2];
             for (int i = 0; i < 2; i++)
@@ -97,7 +93,7 @@ namespace UnifiedFlashingPlatform
             return BitConverter.ToInt16(Bytes, 0);
         }
 
-        public static UInt32 ToUInt32(byte[] Buffer, int Offset)
+        public static uint ToUInt32(byte[] Buffer, int Offset)
         {
             byte[] Bytes = new byte[4];
             for (int i = 0; i < 4; i++)
@@ -108,7 +104,7 @@ namespace UnifiedFlashingPlatform
             return BitConverter.ToUInt32(Bytes, 0);
         }
 
-        public static Int32 ToInt32(byte[] Buffer, int Offset)
+        public static int ToInt32(byte[] Buffer, int Offset)
         {
             byte[] Bytes = new byte[4];
             for (int i = 0; i < 4; i++)

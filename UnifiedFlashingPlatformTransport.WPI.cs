@@ -5,7 +5,7 @@ namespace UnifiedFlashingPlatform
 {
     public partial class UnifiedFlashingPlatformTransport
     {
-        public void FlashSectors(UInt32 StartSector, byte[] Data, byte TargetDevice = 0, int Progress = 0)
+        public void FlashSectors(uint StartSector, byte[] Data, byte TargetDevice = 0, int Progress = 0)
         {
             // Start sector is in UInt32, so max size of eMMC is 2 TB.
 
@@ -22,7 +22,7 @@ namespace UnifiedFlashingPlatform
 
             Buffer.BlockCopy(Data, 0, Request, 0x40, Data.Length);
 
-            ExecuteRawMethod(Request);
+            _ = ExecuteRawMethod(Request);
         }
 
         public void Hello()
@@ -84,7 +84,7 @@ namespace UnifiedFlashingPlatform
                 throw new InvalidOperationException("Unable to read GPT!");
             }
 
-            UInt16 Error = (UInt16)((Buffer[6] << 8) + Buffer[7]);
+            ushort Error = (ushort)((Buffer[6] << 8) + Buffer[7]);
             if (Error > 0)
             {
                 throw new NotSupportedException("ReadGPT: Error 0x" + Error.ToString("X4"));
@@ -93,23 +93,15 @@ namespace UnifiedFlashingPlatform
             // Length: 0x4400 for 512 (0x200) Sector Size (from sector 0 to sector 34)
             // Length: 0x6000 for 4096 (0x1000) Sector Size (from sector 0 to sector 6)
 
-            UInt32 ReturnedGPTBufferLength = (UInt32)Buffer.Length - 8;
-            UInt32 SectorSize;
-            if (Buffer.Length == 0x4408)
-            {
-                SectorSize = 512;
-            }
-            else if (Buffer.Length == 0x6008)
-            {
-                SectorSize = 4096;
-            }
-            else
-            {
-                throw new NotSupportedException("ReadGPT: Unsupported output size! 0x" + ReturnedGPTBufferLength.ToString("X4"));
-            }
+            uint ReturnedGPTBufferLength = (uint)Buffer.Length - 8;
+            uint SectorSize = Buffer.Length == 0x4408
+                ? 512
+                : Buffer.Length == 0x6008
+                    ? (uint)4096
+                    : throw new NotSupportedException("ReadGPT: Unsupported output size! 0x" + ReturnedGPTBufferLength.ToString("X4"));
 
             byte[] GPTBuffer = new byte[ReturnedGPTBufferLength - SectorSize];
-            System.Buffer.BlockCopy(Buffer, 8 + (Int32)SectorSize, GPTBuffer, 0, (Int32)ReturnedGPTBufferLength - (Int32)SectorSize);
+            System.Buffer.BlockCopy(Buffer, 8 + (int)SectorSize, GPTBuffer, 0, (int)ReturnedGPTBufferLength - (int)SectorSize);
 
             /*if (Switch)
             {
@@ -131,12 +123,9 @@ namespace UnifiedFlashingPlatform
             byte[] Request = new byte[4];
             ByteOperations.WriteAsciiString(Request, 0, InfoQuerySignature); // NOKV
             byte[] Response = ExecuteRawMethod(Request);
-            if ((Response == null) || (ByteOperations.ReadAsciiString(Response, 0, 4) == "NOKU"))
-            {
-                throw new NotSupportedException();
-            }
-
-            return Response[5..];
+            return (Response == null) || (ByteOperations.ReadAsciiString(Response, 0, 4) == "NOKU")
+                ? throw new NotSupportedException()
+                : Response[5..];
         }
 
         public void Shutdown()

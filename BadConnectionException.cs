@@ -22,5 +22,12 @@ using System;
 
 namespace UnifiedFlashingPlatform
 {
-    public class BadConnectionException : Exception { public BadConnectionException() { } public BadConnectionException(string message) : base(message) { } public BadConnectionException(string message, Exception innerException) : base(message, innerException) { } }
+    public class BadConnectionException : Exception
+    {
+        public BadConnectionException()
+        {
+        }
+        public BadConnectionException(string message) : base(message) { }
+        public BadConnectionException(string message, Exception innerException) : base(message, innerException) { }
+    }
 }

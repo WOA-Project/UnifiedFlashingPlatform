@@ -31,8 +31,8 @@ namespace UnifiedFlashingPlatform
     {
         private readonly Stream UnderlyingStream;
         private readonly bool IsSourceCompressed;
-        private readonly UInt64 DecompressedLength;
-        private Int64 ReadPosition = 0;
+        private readonly ulong DecompressedLength;
+        private long ReadPosition = 0;
 
         // For reading a compressed stream
         internal DecompressedStream(Stream InputStream)
@@ -44,28 +44,28 @@ namespace UnifiedFlashingPlatform
             Buffer.BlockCopy(Encoding.ASCII.GetBytes("CompressedPartition"), 0, Signature, 0x01, "CompressedPartition".Length);
             Signature["CompressedPartition".Length + 1] = 0x00;
 
-            int PrimaryHeaderSize = 0x0A + "CompressedPartition".Length;
+            _ = 0x0A + "CompressedPartition".Length;
             byte[] SignatureRead = new byte[Signature.Length];
-            UnderlyingStream.Read(SignatureRead, 0, Signature.Length);
+            _ = UnderlyingStream.Read(SignatureRead, 0, Signature.Length);
 
             IsSourceCompressed = StructuralComparisons.StructuralEqualityComparer.Equals(Signature, SignatureRead);
             if (IsSourceCompressed)
             {
                 byte[] FormatVersionBytes = new byte[4];
-                UnderlyingStream.Read(FormatVersionBytes, 0, 4);
+                _ = UnderlyingStream.Read(FormatVersionBytes, 0, 4);
                 if (BitConverter.ToUInt32(FormatVersionBytes, 0) > 1) // Max supported format version = 1
                 {
                     throw new InvalidDataException();
                 }
 
                 byte[] HeaderSizeBytes = new byte[4];
-                UnderlyingStream.Read(HeaderSizeBytes, 0, 4);
-                UInt32 HeaderSize = BitConverter.ToUInt32(HeaderSizeBytes, 0);
+                _ = UnderlyingStream.Read(HeaderSizeBytes, 0, 4);
+                uint HeaderSize = BitConverter.ToUInt32(HeaderSizeBytes, 0);
 
                 if (HeaderSize >= (Signature.Length + 0x10))
                 {
                     byte[] DecompressedLengthBytes = new byte[8];
-                    UnderlyingStream.Read(DecompressedLengthBytes, 0, 8);
+                    _ = UnderlyingStream.Read(DecompressedLengthBytes, 0, 8);
                     DecompressedLength = BitConverter.ToUInt64(DecompressedLengthBytes, 0);
                 }
                 else
@@ -73,11 +73,11 @@ namespace UnifiedFlashingPlatform
                     throw new InvalidDataException();
                 }
 
-                UInt32 HeaderBytesRemaining = (UInt32)(HeaderSize - Signature.Length - 0x10);
+                uint HeaderBytesRemaining = (uint)(HeaderSize - Signature.Length - 0x10);
                 if (HeaderBytesRemaining > 0)
                 {
                     byte[] HeaderBytes = new byte[HeaderBytesRemaining];
-                    UnderlyingStream.Read(HeaderBytes, 0, (int)HeaderBytesRemaining);
+                    _ = UnderlyingStream.Read(HeaderBytes, 0, (int)HeaderBytesRemaining);
                 }
 
                 UnderlyingStream = new GZipStream(UnderlyingStream, CompressionMode.Decompress, false);
@@ -88,45 +88,47 @@ namespace UnifiedFlashingPlatform
             }
         }
 
-        public override bool CanRead { get { return true; } }
-        public override bool CanSeek { get { return false; } }
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
         public override int Read(byte[] buffer, int offset, int count)
         {
             int RealCount = UnderlyingStream.Read(buffer, offset, count);
             ReadPosition += RealCount;
             return RealCount;
         }
-        public override long Seek(long offset, SeekOrigin origin) { throw new NotSupportedException(); }
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            throw new NotSupportedException();
+        }
         public override long Position
         {
-            get { return ReadPosition; }
-            set { throw new NotSupportedException(); }
+            get => ReadPosition;
+            set => throw new NotSupportedException();
         }
-        public override bool CanTimeout { get { return UnderlyingStream.CanTimeout; } }
-        public override bool CanWrite { get { return true; } }
-        public override long Length
+        public override bool CanTimeout => UnderlyingStream.CanTimeout;
+        public override bool CanWrite => true;
+        public override long Length => IsSourceCompressed ? (long)DecompressedLength : UnderlyingStream.Length;
+        public override void SetLength(long value)
         {
-            get
-            {
-                if (IsSourceCompressed)
-                {
-                    return (long)DecompressedLength;
-                }
-                else
-                {
-                    return UnderlyingStream.Length;
-                }
-            }
+            throw new NotSupportedException();
         }
-        public override void SetLength(long value) { throw new NotSupportedException(); }
-        public override void Write(byte[] buffer, int offset, int count) { throw new NotSupportedException(); }
-        public override void Flush() { UnderlyingStream.Flush(); }
-        public override void Close() { UnderlyingStream.Close(); }
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            throw new NotSupportedException();
+        }
+        public override void Flush()
+        {
+            UnderlyingStream.Flush();
+        }
+        public override void Close()
+        {
+            UnderlyingStream.Close();
+        }
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
-                this.UnderlyingStream.Dispose();
+                UnderlyingStream.Dispose();
             }
         }
     }

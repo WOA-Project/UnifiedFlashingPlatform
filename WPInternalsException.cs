@@ -25,7 +25,7 @@ namespace UnifiedFlashingPlatform
     internal class WPinternalsException : Exception
     {
         // Message and SubMessaage are always printable
-        internal string SubMessage = null;
+        internal string? SubMessage = null;
 
         internal WPinternalsException() : base() { }
 
