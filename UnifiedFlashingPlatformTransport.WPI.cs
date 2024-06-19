@@ -1,11 +1,22 @@
-﻿using System;
+﻿using Img2Ffu.Reader.Data;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 
 namespace UnifiedFlashingPlatform
 {
+    internal enum FfuProtocol
+    {
+        ProtocolSyncV1 = 1,
+        ProtocolAsyncV1 = 2,
+        ProtocolSyncV2 = 4,
+        ProtocolAsyncV2 = 8,
+        ProtocolAsyncV3 = 16
+    }
+
     public partial class UnifiedFlashingPlatformTransport
     {
         private readonly PhoneInfo Info = new();
@@ -123,6 +134,364 @@ namespace UnifiedFlashingPlatform
             return new GPT(GPTBuffer, SectorSize);  // NOKT message header and MBR are ignored
         }
 
+        private void ThrowFlashError(int ErrorCode)
+        {
+            string SubMessage = ErrorCode switch
+            {
+                0x0008 => "Unsupported protocol / Invalid options",
+                0x000F => "Invalid sub block count",
+                0x0010 => "Invalid sub block length",
+                0x0012 => "Authentication required",
+                0x000E => "Invalid sub block type",
+                0x0013 => "Failed async message",
+                0x1000 => "Invalid header type",
+                0x1001 => "FFU header contain unknown extra data",
+                0x0001 => "Couldn't allocate memory",
+                0x1106 => "Security header validation failed",
+                0x1105 => "Invalid hash table size",
+                0x1104 => "Invalid catalog size",
+                0x1103 => "Invalid chunk size",
+                0x1102 => "Unsupported algorithm",
+                0x1101 => "Invalid struct size",
+                0x1100 => "Invalid signature",
+                0x1202 => "Invalid struct size",
+                0x1203 => "Unsupported algorithm",
+                0x1204 => "Invalid chunk size",
+                0x1005 => "Data not aligned correctly",
+                0x0009 => "Locate protocol failed",
+                0x1003 => "Hash mismatch",
+                0x1006 => "Couldn't find hash from security header for index",
+                0x1004 => "Security header import missing / All FFU headers have not been imported",
+                0x1304 => "Invalid platform ID",
+                0x1307 => "Invalid write descriptor info",
+                0x1306 => "Invalid write descriptor info",
+                0x1305 => "Invalid block size",
+                0x1303 => "Unsupported FFU version",
+                0x1302 => "Unsupported struct version",
+                0x1301 => "Invalid update type",
+                0x100B => "Too much payload data, all data has already been written",
+                0x1008 => "Internal error",
+                0x1007 => "Payload data does not contain all data",
+                0x0004 => "Flash write failed",
+                0x000D => "Flash verify failed",
+                0x0002 => "Flash read failed",
+                _ => "Unknown error",
+            };
+            WPinternalsException Ex = new("Flash failed!");
+            Ex.SubMessage = "Error 0x" + ErrorCode.ToString("X4") + ": " + SubMessage;
+
+            throw Ex;
+        }
+
+        public void SendFfuHeaderV1(byte[] FfuHeader, byte Options = 0)
+        {
+            byte[] Request = new byte[FfuHeader.Length + 0x20];
+
+            const string Header = "NOKXFS";
+            Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
+            Buffer.BlockCopy(BigEndian.GetBytes(0x0001, 2), 0, Request, 0x06, 2); // Protocol version = 0x0001
+            Request[0x08] = 0; // Progress = 0%
+            Request[0x0B] = 1; // Subblock count = 1
+            Buffer.BlockCopy(BigEndian.GetBytes(0x0000000B, 4), 0, Request, 0x0C, 4); // Subblock type for header = 0x0B
+            Buffer.BlockCopy(BigEndian.GetBytes(FfuHeader.Length + 0x0C, 4), 0, Request, 0x10, 4); // Subblock length = length of header + 0x0C
+            Buffer.BlockCopy(BigEndian.GetBytes(0x00000000, 4), 0, Request, 0x14, 4); // Header type = 0
+            Buffer.BlockCopy(BigEndian.GetBytes(FfuHeader.Length, 4), 0, Request, 0x18, 4); // Payload length = length of header
+            Request[0x1C] = Options; // Header options = 0
+
+            Buffer.BlockCopy(FfuHeader, 0, Request, 0x20, FfuHeader.Length);
+
+            byte[] Response = ExecuteRawMethod(Request);
+            if (Response == null)
+            {
+                throw new BadConnectionException();
+            }
+
+            int ResultCode = (Response[6] << 8) + Response[7];
+            if (ResultCode != 0)
+            {
+                ThrowFlashError(ResultCode);
+            }
+        }
+
+        public void SendFfuHeaderV2(uint TotalHeaderLength, uint OffsetForThisPart, byte[] FfuHeader, byte Options = 0)
+        {
+            byte[] Request = new byte[FfuHeader.Length + 0x3C];
+
+            const string Header = "NOKXFS";
+            Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
+            Buffer.BlockCopy(BigEndian.GetBytes((int)FfuProtocol.ProtocolSyncV2, 2), 0, Request, 0x06, 2); // Protocol version = 0x0001
+            Request[0x08] = 0; // Progress = 0%
+            Request[0x0B] = 1; // Subblock count = 1
+
+            Buffer.BlockCopy(BigEndian.GetBytes(0x00000021, 4), 0, Request, 0x0C, 4); // Subblock type for header v2 = 0x21
+            Buffer.BlockCopy(BigEndian.GetBytes(FfuHeader.Length + 0x28, 4), 0, Request, 0x10, 4); // Subblock starts at 0x14, payload starts at 0x3C.
+
+            Buffer.BlockCopy(BigEndian.GetBytes(0x00000000, 4), 0, Request, 0x14, 4); // Header type = 0
+            Buffer.BlockCopy(BigEndian.GetBytes(TotalHeaderLength, 4), 0, Request, 0x18, 4); // Payload length = length of header
+            Request[0x1C] = Options; // Header options = 0
+
+            Buffer.BlockCopy(BigEndian.GetBytes(OffsetForThisPart, 4), 0, Request, 0x1D, 4);
+            Buffer.BlockCopy(BigEndian.GetBytes(FfuHeader.Length, 4), 0, Request, 0x21, 4);
+            Request[0x25] = 0; // No Erase
+
+            Buffer.BlockCopy(FfuHeader, 0, Request, 0x3C, FfuHeader.Length);
+
+            byte[] Response = ExecuteRawMethod(Request);
+            if (Response == null)
+            {
+                throw new BadConnectionException();
+            }
+
+            if (Response.Length == 4)
+            {
+                throw new WPinternalsException("Flash protocol v2 not supported", "The device reported that the Flash protocol v2 was not supported while sending the FFU header.");
+            }
+
+            int ResultCode = (Response[6] << 8) + Response[7];
+            if (ResultCode != 0)
+            {
+                ThrowFlashError(ResultCode);
+            }
+        }
+
+        public void SendFfuPayloadV1(byte[] FfuChunk, int Progress = 0, byte Options = 0)
+        {
+            byte[] Request = new byte[FfuChunk.Length + 0x1C];
+
+            const string Header = "NOKXFS";
+            Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
+            Buffer.BlockCopy(BigEndian.GetBytes((int)FfuProtocol.ProtocolSyncV1, 2), 0, Request, 0x06, 2); // Protocol version = 0x0001
+            Request[0x08] = (byte)Progress; // Progress = 0% (0 - 100)
+            Request[0x0B] = 1; // Subblock count = 1
+
+            Buffer.BlockCopy(BigEndian.GetBytes(0x0000000C, 4), 0, Request, 0x0C, 4); // Subblock type for ChunkData = 0x0C
+            Buffer.BlockCopy(BigEndian.GetBytes(FfuChunk.Length + 0x08, 4), 0, Request, 0x10, 4); // Subblock length = length of chunk + 0x08
+
+            Buffer.BlockCopy(BigEndian.GetBytes(FfuChunk.Length, 4), 0, Request, 0x14, 4); // Payload length = length of chunk
+            Request[0x18] = Options; // Data options = 0 (1 = verify)
+
+            Buffer.BlockCopy(FfuChunk, 0, Request, 0x1C, FfuChunk.Length);
+
+            byte[] Response = ExecuteRawMethod(Request);
+            if (Response == null)
+            {
+                throw new BadConnectionException();
+            }
+
+            int ResultCode = (Response[6] << 8) + Response[7];
+            if (ResultCode != 0)
+            {
+                ThrowFlashError(ResultCode);
+            }
+        }
+
+        public void SendFfuPayloadV2(byte[] FfuChunk, int Progress = 0, byte Options = 0)
+        {
+            byte[] Request = new byte[FfuChunk.Length + 0x20];
+
+            const string Header = "NOKXFS";
+            Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
+            Buffer.BlockCopy(BigEndian.GetBytes((int)FfuProtocol.ProtocolSyncV2, 2), 0, Request, 0x06, 2); // Protocol
+            Request[0x08] = (byte)Progress; // Progress = 0% (0 - 100)
+            Request[0x0B] = 1; // Subblock count = 1
+
+            Buffer.BlockCopy(BigEndian.GetBytes(0x0000001B, 4), 0, Request, 0x0C, 4); // Subblock type for Payload v2 = 0x1B
+            Buffer.BlockCopy(BigEndian.GetBytes(FfuChunk.Length + 0x0C, 4), 0, Request, 0x10, 4); // Subblock length = length of chunk + 0x08
+
+            Buffer.BlockCopy(BigEndian.GetBytes(FfuChunk.Length, 4), 0, Request, 0x14, 4); // Payload length = length of chunk
+            Request[0x18] = Options; // Data options = 0 (1 = verify)
+
+            Buffer.BlockCopy(FfuChunk, 0, Request, 0x20, FfuChunk.Length);
+
+            byte[] Response = ExecuteRawMethod(Request);
+            if (Response == null)
+            {
+                throw new BadConnectionException();
+            }
+
+            int ResultCode = (Response[6] << 8) + Response[7];
+            if (ResultCode != 0)
+            {
+                ThrowFlashError(ResultCode);
+            }
+        }
+
+        public void SendFfuPayloadV3(byte[] FfuChunk, uint WriteDescriptorIndex, uint CRC, int Progress = 0, byte Options = 0)
+        {
+            byte[] Request = new byte[FfuChunk.Length + 0x20];
+
+            const string Header = "NOKXFS";
+            Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
+            Buffer.BlockCopy(BigEndian.GetBytes((int)FfuProtocol.ProtocolAsyncV3, 2), 0, Request, 0x06, 2); // Protocol
+            Request[0x08] = (byte)Progress; // Progress = 0% (0 - 100)
+            Request[0x0B] = 1; // Subblock count = 1
+
+            Buffer.BlockCopy(BigEndian.GetBytes(0x0000001D, 4), 0, Request, 0x0C, 4); // Subblock type for Payload v2 = 0x1B
+            Buffer.BlockCopy(BigEndian.GetBytes(FfuChunk.Length + 0x2C, 4), 0, Request, 0x10, 4); // Subblock length = length of chunk + 0x08
+
+            Buffer.BlockCopy(BigEndian.GetBytes(FfuChunk.Length, 4), 0, Request, 0x14, 4); // Payload length = length of chunk
+            Request[0x18] = Options; // Data options = 0 (1 = verify)
+            Buffer.BlockCopy(BigEndian.GetBytes(WriteDescriptorIndex, 4), 0, Request, 0x19, 4); // Payload length = length of chunk
+            Buffer.BlockCopy(BigEndian.GetBytes(CRC, 4), 0, Request, 0x1D, 4); // Payload length = length of chunk
+
+            Buffer.BlockCopy(FfuChunk, 0, Request, 0x40, FfuChunk.Length);
+
+            byte[] Response = ExecuteRawMethod(Request);
+            if (Response == null)
+            {
+                throw new BadConnectionException();
+            }
+
+            int ResultCode = (Response[6] << 8) + Response[7];
+            if (ResultCode != 0)
+            {
+                ThrowFlashError(ResultCode);
+            }
+        }
+
+        public class ProgressUpdater
+        {
+            private readonly DateTime InitTime;
+            private DateTime LastUpdateTime;
+            private readonly ulong MaxValue;
+            private readonly Action<int, TimeSpan?> ProgressUpdateCallback;
+            public int ProgressPercentage;
+
+            public ProgressUpdater(ulong MaxValue, Action<int, TimeSpan?> ProgressUpdateCallback)
+            {
+                InitTime = DateTime.Now;
+                LastUpdateTime = DateTime.Now;
+                this.MaxValue = MaxValue;
+                this.ProgressUpdateCallback = ProgressUpdateCallback;
+                SetProgress(0);
+            }
+
+            private ulong _Progress;
+            public ulong Progress
+            {
+                get
+                {
+                    return _Progress;
+                }
+            }
+
+            public void SetProgress(ulong NewValue)
+            {
+                if (_Progress != NewValue)
+                {
+                    int PreviousProgressPercentage = (int)((double)_Progress / MaxValue * 100);
+                    ProgressPercentage = (int)((double)NewValue / MaxValue * 100);
+
+                    _Progress = NewValue;
+
+                    if (((DateTime.Now - LastUpdateTime) > TimeSpan.FromSeconds(0.5)) || (ProgressPercentage == 100))
+                    {
+#if DEBUG
+                        Console.WriteLine("Init time: " + InitTime.ToShortTimeString() + " / Now: " + DateTime.Now.ToString() + " / NewValue: " + NewValue.ToString() + " / MaxValue: " + MaxValue.ToString() + " ->> Percentage: " + ProgressPercentage.ToString() + " / Remaining: " + TimeSpan.FromTicks((long)((DateTime.Now - InitTime).Ticks / ((double)NewValue / MaxValue) * (1 - ((double)NewValue / MaxValue)))).ToString());
+#endif
+
+                        if (((DateTime.Now - InitTime) < TimeSpan.FromSeconds(30)) && (ProgressPercentage < 15))
+                        {
+                            ProgressUpdateCallback(ProgressPercentage, null);
+                        }
+                        else
+                        {
+                            ProgressUpdateCallback(ProgressPercentage, TimeSpan.FromTicks((long)((DateTime.Now - InitTime).Ticks / ((double)NewValue / MaxValue) * (1 - ((double)NewValue / MaxValue)))));
+                        }
+
+                        LastUpdateTime = DateTime.Now;
+                    }
+                }
+            }
+
+            public void IncreaseProgress(ulong Progress)
+            {
+                SetProgress(_Progress + Progress);
+            }
+        }
+
+        public void FlashFFU(string FFUPath, bool ResetAfterwards = true, byte Options = 0)
+        {
+            using FileStream FfuFile = new(FFUPath, FileMode.Open, FileAccess.Read);
+            FlashFFU(FfuFile, ResetAfterwards, Options);
+        }
+
+        public void FlashFFU(FileStream FfuFile, bool ResetAfterwards = true, byte Options = 0)
+        {
+            FlashFFU(FfuFile, null, ResetAfterwards, Options);
+        }
+
+        public void FlashFFU(FileStream FfuFile, ProgressUpdater UpdaterPerChunk, bool ResetAfterwards = true, byte Options = 0)
+        {
+            ProgressUpdater Progress = UpdaterPerChunk;
+
+            PhoneInfo Info = ReadPhoneInfo();
+            if ((Info.SecureFfuSupportedProtocolMask & ((ushort)FfuProtocol.ProtocolSyncV1 | (ushort)FfuProtocol.ProtocolSyncV2)) == 0)
+            {
+                throw new WPinternalsException("Flash failed!", "Protocols not supported. The device reports that both Protocol Sync v1 and Protocol Sync v2 are not supported for FFU flashing. Is this an old device?");
+            }
+
+            long position = FfuFile.Position;
+            SignedImage FFU = new(FfuFile);
+
+            int chunkSize = FFU.ChunkSize;
+            ulong totalChunkCount = FFU.TotalChunkCount;
+            ulong CombinedFFUHeaderSize = FFU.HeaderSize;
+
+            FfuFile.Seek(position, SeekOrigin.Begin);
+
+            byte[] FfuHeader = new byte[CombinedFFUHeaderSize];
+            FfuFile.Read(FfuHeader, 0, (int)CombinedFFUHeaderSize);
+            SendFfuHeaderV1(FfuHeader, Options);
+
+            ulong Position = CombinedFFUHeaderSize;
+            byte[] Payload;
+            int ChunkCount = 0;
+
+            if ((Info.SecureFfuSupportedProtocolMask & (ushort)FfuProtocol.ProtocolSyncV2) == 0)
+            {
+                // Protocol v1
+                Payload = new byte[chunkSize];
+
+                while (Position < (ulong)FfuFile.Length)
+                {
+                    FfuFile.Read(Payload, 0, Payload.Length);
+                    ChunkCount++;
+                    SendFfuPayloadV1(Payload, (int)((double)ChunkCount * 100 / totalChunkCount), 0);
+                    Position += (ulong)Payload.Length;
+
+                    Progress?.IncreaseProgress(1);
+                }
+            }
+            else
+            {
+                // Protocol v2
+                Payload = new byte[Info.WriteBufferSize];
+
+                while (Position < (ulong)FfuFile.Length)
+                {
+                    uint PayloadSize = Info.WriteBufferSize;
+                    if (((ulong)FfuFile.Length - Position) < PayloadSize)
+                    {
+                        PayloadSize = (uint)((ulong)FfuFile.Length - Position);
+                        Payload = new byte[PayloadSize];
+                    }
+
+                    FfuFile.Read(Payload, 0, (int)PayloadSize);
+                    ChunkCount += (int)(PayloadSize / chunkSize);
+                    SendFfuPayloadV2(Payload, (int)((double)ChunkCount * 100 / totalChunkCount), 0);
+                    Position += PayloadSize;
+
+                    Progress?.IncreaseProgress((ulong)(PayloadSize / chunkSize));
+                }
+            }
+
+            if (ResetAfterwards)
+            {
+                ResetPhone();
+            }
+        }
+
         public PhoneInfo ReadPhoneInfo()
         {
             // NOKV = Info Query
@@ -155,7 +524,7 @@ namespace UnifiedFlashingPlatform
                     for (int i = 0; i < SubblockCount; i++)
                     {
                         byte SubblockID = Response[SubblockOffset + 0x00];
-                        UInt16 SubblockLength = BigEndian.ToUInt16(Response, SubblockOffset + 0x01);
+                        ushort SubblockLength = BigEndian.ToUInt16(Response, SubblockOffset + 0x01);
                         int SubblockPayloadOffset = SubblockOffset + 3;
                         byte SubblockVersion;
                         switch (SubblockID)
@@ -285,13 +654,13 @@ namespace UnifiedFlashingPlatform
             public byte FlashAppProtocolVersionMajor;
             public byte FlashAppProtocolVersionMinor;
 
-            public UInt32 TransferSize;
+            public uint TransferSize;
             public bool MmosOverUsbSupported;
-            public UInt32 SdCardSizeInSectors;
-            public UInt32 WriteBufferSize;
-            public UInt32 EmmcSizeInSectors;
+            public uint SdCardSizeInSectors;
+            public uint WriteBufferSize;
+            public uint EmmcSizeInSectors;
             public string PlatformID;
-            public UInt16 SecureFfuSupportedProtocolMask;
+            public ushort SecureFfuSupportedProtocolMask;
             public bool AsyncSupport;
 
             public bool PlatformSecureBootEnabled;
@@ -309,7 +678,7 @@ namespace UnifiedFlashingPlatform
             public string SKUNumber;
             public string BaseboardManufacturer;
             public string BaseboardProduct;
-            public UInt64 LargestMemoryRegion;
+            public ulong LargestMemoryRegion;
             public AppType AppType;
             public List<(uint SectorCount, uint SectorSize, ushort FlashType, ushort FlashIndex, uint Unknown, string DevicePath)> BootDevices = new();
 
