@@ -387,7 +387,7 @@ namespace UnifiedFlashingPlatform
                     if (((DateTime.Now - LastUpdateTime) > TimeSpan.FromSeconds(0.5)) || (ProgressPercentage == 100))
                     {
 #if DEBUG
-                        Console.WriteLine("Init time: " + InitTime.ToShortTimeString() + " / Now: " + DateTime.Now.ToString() + " / NewValue: " + NewValue.ToString() + " / MaxValue: " + MaxValue.ToString() + " ->> Percentage: " + ProgressPercentage.ToString() + " / Remaining: " + TimeSpan.FromTicks((long)((DateTime.Now - InitTime).Ticks / ((double)NewValue / MaxValue) * (1 - ((double)NewValue / MaxValue)))).ToString());
+                        Debug.WriteLine("Init time: " + InitTime.ToShortTimeString() + " / Now: " + DateTime.Now.ToString() + " / NewValue: " + NewValue.ToString() + " / MaxValue: " + MaxValue.ToString() + " ->> Percentage: " + ProgressPercentage.ToString() + " / Remaining: " + TimeSpan.FromTicks((long)((DateTime.Now - InitTime).Ticks / ((double)NewValue / MaxValue) * (1 - ((double)NewValue / MaxValue)))).ToString());
 #endif
 
                         if (((DateTime.Now - InitTime) < TimeSpan.FromSeconds(30)) && (ProgressPercentage < 15))
@@ -629,7 +629,7 @@ namespace UnifiedFlashingPlatform
                                 Result.AppType = (AppType)Response[SubblockPayloadOffset];
                                 break;
                             default:
-                                Console.WriteLine($"Unknown Subblock: ID: 0x{SubblockID:X2} Length: 0x{SubblockLength:X4}");
+                                Debug.WriteLine($"Unknown Subblock: ID: 0x{SubblockID:X2} Length: 0x{SubblockLength:X4}");
                                 break;
                         }
                         SubblockOffset += SubblockLength + 3;
@@ -706,18 +706,18 @@ namespace UnifiedFlashingPlatform
                 switch (App)
                 {
                     case FlashAppType.FlashApp:
-                        Console.WriteLine("Flash app: " + FlashAppVersionMajor + "." + FlashAppVersionMinor);
-                        Console.WriteLine("Flash protocol: " + FlashAppProtocolVersionMajor + "." + FlashAppProtocolVersionMinor);
+                        Debug.WriteLine("Flash app: " + FlashAppVersionMajor + "." + FlashAppVersionMinor);
+                        Debug.WriteLine("Flash protocol: " + FlashAppProtocolVersionMajor + "." + FlashAppProtocolVersionMinor);
                         break;
                 }
 
-                Console.WriteLine("SecureBoot: " + ((!PlatformSecureBootEnabled || !UefiSecureBootEnabled) ? "Disabled" : "Enabled") + " (Platform Secure Boot: " + (PlatformSecureBootEnabled ? "Enabled" : "Disabled") + ", UEFI Secure Boot: " + (UefiSecureBootEnabled ? "Enabled" : "Disabled") + ")");
+                Debug.WriteLine("SecureBoot: " + ((!PlatformSecureBootEnabled || !UefiSecureBootEnabled) ? "Disabled" : "Enabled") + " (Platform Secure Boot: " + (PlatformSecureBootEnabled ? "Enabled" : "Disabled") + ", UEFI Secure Boot: " + (UefiSecureBootEnabled ? "Enabled" : "Disabled") + ")");
 
-                Console.WriteLine("Flash app security: " + (!IsBootloaderSecure ? "Disabled" : "Enabled"));
+                Debug.WriteLine("Flash app security: " + (!IsBootloaderSecure ? "Disabled" : "Enabled"));
 
-                Console.WriteLine("Flash app security: " + (!IsBootloaderSecure ? "Disabled" : "Enabled") + " (FFU security: " + (SecureFfuEnabled ? "Enabled" : "Disabled") + ", RDC: " + (RdcPresent ? "Present" : "Not found") + ", Authenticated: " + (Authenticated ? "True" : "False") + ")");
+                Debug.WriteLine("Flash app security: " + (!IsBootloaderSecure ? "Disabled" : "Enabled") + " (FFU security: " + (SecureFfuEnabled ? "Enabled" : "Disabled") + ", RDC: " + (RdcPresent ? "Present" : "Not found") + ", Authenticated: " + (Authenticated ? "True" : "False") + ")");
 
-                Console.WriteLine("JTAG: " + (JtagDisabled ? "Disabled" : "Enabled"));
+                Debug.WriteLine("JTAG: " + (JtagDisabled ? "Disabled" : "Enabled"));
             }
         }
 
