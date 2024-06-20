@@ -472,9 +472,9 @@ namespace UnifiedFlashingPlatform
                 while (HeaderPosition < CombinedFFUHeaderSize)
                 {
                     uint PayloadSize = Info.WriteBufferSize;
-                    if ((CombinedFFUHeaderSize - Position) < PayloadSize)
+                    if ((CombinedFFUHeaderSize - HeaderPosition) < PayloadSize)
                     {
-                        PayloadSize = (uint)(CombinedFFUHeaderSize - Position);
+                        PayloadSize = (uint)(CombinedFFUHeaderSize - HeaderPosition);
                         FfuHeader = new byte[PayloadSize];
                     }
 
