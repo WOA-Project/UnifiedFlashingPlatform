@@ -10,7 +10,7 @@ using System.Text;
 
 namespace Img2Ffu.Reader.Data
 {
-    internal class SignedImage
+    public class SignedImage
     {
         public SecurityHeader SecurityHeader;
         public byte[] Catalog;

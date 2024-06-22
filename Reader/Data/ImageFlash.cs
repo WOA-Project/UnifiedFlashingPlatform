@@ -9,7 +9,7 @@ using System.Text;
 
 namespace Img2Ffu.Reader.Data
 {
-    internal class ImageFlash
+    public class ImageFlash
     {
         public ImageHeader ImageHeader;
         public string ManifestData = "";

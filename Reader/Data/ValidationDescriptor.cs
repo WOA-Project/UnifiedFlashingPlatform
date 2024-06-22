@@ -4,7 +4,7 @@ using System.IO;
 
 namespace Img2Ffu.Reader.Data
 {
-    internal class ValidationDescriptor
+    public class ValidationDescriptor
     {
         public ValidationEntry ValidationEntry;
         public byte[] ValidationBytes;
