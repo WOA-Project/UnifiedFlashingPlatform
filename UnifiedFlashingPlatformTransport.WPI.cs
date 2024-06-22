@@ -183,7 +183,7 @@ namespace UnifiedFlashingPlatform
             throw Ex;
         }
 
-        public void SendFfuHeaderV1(byte[] FfuHeader, byte Options = 0)
+        public void SendFfuHeaderV1(byte[] FfuHeader, int Progress = 0, byte Options = 0)
         {
             byte[] Request = new byte[FfuHeader.Length + 0x20];
 
@@ -213,13 +213,13 @@ namespace UnifiedFlashingPlatform
             }
         }
 
-        public void SendFfuHeaderV2(uint TotalHeaderLength, uint OffsetForThisPart, byte[] FfuHeader, byte Options = 0)
+        public void SendFfuHeaderV2(uint TotalHeaderLength, uint OffsetForThisPart, byte[] FfuHeader, int Progress = 0, byte Options = 0)
         {
             byte[] Request = new byte[FfuHeader.Length + 0x3C];
 
             const string Header = "NOKXFS";
             Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
-            Buffer.BlockCopy(BigEndian.GetBytes((int)FfuProtocol.ProtocolAsyncV1, 2), 0, Request, 0x06, 2); // Protocol version = 0x0001
+            Buffer.BlockCopy(BigEndian.GetBytes(0x0002, 2), 0, Request, 0x06, 2); // Protocol version = 0x0002
             Request[0x08] = 0; // Progress = 0%
             Request[0x0B] = 1; // Subblock count = 1
 
@@ -440,16 +440,21 @@ namespace UnifiedFlashingPlatform
 
             FfuFile.Seek(position, SeekOrigin.Begin);
 
-            ulong Position = CombinedFFUHeaderSize;
             byte[] Payload;
             int ChunkCount = 0;
+            ulong Position = 0;
 
             if ((Info.SecureFfuSupportedProtocolMask & (ushort)FfuProtocol.ProtocolSyncV2) == 0)
             {
                 // Protocol v1
                 byte[] FfuHeader = new byte[CombinedFFUHeaderSize];
+
                 FfuFile.Read(FfuHeader, 0, (int)CombinedFFUHeaderSize);
-                SendFfuHeaderV1(FfuHeader, Options);
+                ChunkCount++;
+                SendFfuHeaderV1(FfuHeader, (int)Math.Truncate((double)ChunkCount * 100 / totalChunkCount), Options);
+                Position += (ulong)FfuHeader.Length;
+
+                Progress?.IncreaseProgress(1);
 
                 Payload = new byte[chunkSize];
 
@@ -457,7 +462,7 @@ namespace UnifiedFlashingPlatform
                 {
                     FfuFile.Read(Payload, 0, Payload.Length);
                     ChunkCount++;
-                    SendFfuPayloadV1(Payload, (int)((double)ChunkCount * 100 / totalChunkCount), 0);
+                    SendFfuPayloadV1(Payload, (int)Math.Truncate((double)ChunkCount * 100 / totalChunkCount), 0);
                     Position += (ulong)Payload.Length;
 
                     Progress?.IncreaseProgress(1);
@@ -468,19 +473,21 @@ namespace UnifiedFlashingPlatform
                 // Protocol v2
                 byte[] FfuHeader = new byte[Info.WriteBufferSize];
 
-                uint HeaderPosition = 0;
-                while (HeaderPosition < CombinedFFUHeaderSize)
+                while (Position < CombinedFFUHeaderSize)
                 {
                     uint PayloadSize = Info.WriteBufferSize;
-                    if ((CombinedFFUHeaderSize - HeaderPosition) < PayloadSize)
+                    if ((CombinedFFUHeaderSize - Position) < PayloadSize)
                     {
-                        PayloadSize = (uint)(CombinedFFUHeaderSize - HeaderPosition);
+                        PayloadSize = (uint)(CombinedFFUHeaderSize - Position);
                         FfuHeader = new byte[PayloadSize];
                     }
 
                     FfuFile.Read(FfuHeader, 0, (int)PayloadSize);
-                    SendFfuHeaderV2((uint)CombinedFFUHeaderSize, HeaderPosition, FfuHeader, Options);
-                    HeaderPosition += PayloadSize;
+                    ChunkCount += (int)(PayloadSize / chunkSize);
+                    SendFfuHeaderV2((uint)CombinedFFUHeaderSize, (uint)Position, FfuHeader, (int)Math.Truncate((double)ChunkCount * 100 / totalChunkCount), Options);
+                    Position += PayloadSize;
+
+                    Progress?.IncreaseProgress((ulong)(PayloadSize / chunkSize));
                 }
 
                 Payload = new byte[Info.WriteBufferSize];
@@ -496,7 +503,7 @@ namespace UnifiedFlashingPlatform
 
                     FfuFile.Read(Payload, 0, (int)PayloadSize);
                     ChunkCount += (int)(PayloadSize / chunkSize);
-                    SendFfuPayloadV2(Payload, (int)((double)ChunkCount * 100 / totalChunkCount), 0);
+                    SendFfuPayloadV2(Payload, (int)Math.Truncate((double)ChunkCount * 100 / totalChunkCount), 0);
                     Position += PayloadSize;
 
                     Progress?.IncreaseProgress((ulong)(PayloadSize / chunkSize));

@@ -211,9 +211,11 @@ namespace UnifiedFlashingPlatform
         // WIP!
         public string ReadLog()
         {
+            PhoneInfo Info = ReadPhoneInfo();
+
             byte[] Request = new byte[0x13];
             string Header = GetLogsSignature;
-            ulong BufferSize = 0xF000 - 0xC;
+            ulong BufferSize = 0xE000 - 0xC;
 
             ulong Length = ReadLogSize(DeviceLogType.Flashing)!.Value;
             if (Length == 0)
