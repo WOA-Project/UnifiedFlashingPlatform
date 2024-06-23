@@ -9,7 +9,7 @@ namespace UnifiedFlashingPlatform
         public byte[]? ReadParam(string Param)
         {
             byte[] Request = new byte[0x0B];
-            string Header = ReadParamSignature; // NOKXFR
+            const string Header = ReadParamSignature; // NOKXFR
 
             Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
             Buffer.BlockCopy(Encoding.ASCII.GetBytes(Param), 0, Request, 7, Param.Length);
@@ -84,7 +84,7 @@ namespace UnifiedFlashingPlatform
             byte[] DirectoryNameBuffer = Encoding.Unicode.GetBytes(DirectoryName);
 
             byte[] Request = new byte[87 + DirectoryNameBuffer.Length + 2];
-            string Header = ReadParamSignature; // NOKXFR
+            const string Header = ReadParamSignature; // NOKXFR
             const string Param = "DES\0";
 
             Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
@@ -247,7 +247,7 @@ namespace UnifiedFlashingPlatform
             byte[] FileNameBuffer = Encoding.Unicode.GetBytes(FileName);
 
             byte[] Request = new byte[87 + FileNameBuffer.Length + 2];
-            string Header = ReadParamSignature; // NOKXFR
+            const string Header = ReadParamSignature; // NOKXFR
             const string Param = "FZ\0\0";
 
             Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
@@ -277,7 +277,7 @@ namespace UnifiedFlashingPlatform
         public UefiVariable? ReadUEFIVariable(Guid Guid, string Name, uint Size)
         {
             byte[] Request = new byte[39 + ((Name.Length + 1) * 2)];
-            string Header = ReadParamSignature; // NOKXFR
+            const string Header = ReadParamSignature; // NOKXFR
             string Param = "GUFV";
 
             byte[] VariableNameBuffer = Encoding.Unicode.GetBytes(Name);
@@ -310,7 +310,7 @@ namespace UnifiedFlashingPlatform
         public uint? ReadUEFIVariableSize(Guid Guid, string Name)
         {
             byte[] Request = new byte[39 + ((Name.Length + 1) * 2)];
-            string Header = "NOKXFR"; // NOKXFR
+            const string Header = "NOKXFR"; // NOKXFR
             string Param = "GUVS";
 
             byte[] VariableNameBuffer = Encoding.Unicode.GetBytes(Name);
@@ -346,7 +346,7 @@ namespace UnifiedFlashingPlatform
         public ulong? ReadLogSize(DeviceLogType LogType)
         {
             byte[] Request = new byte[0x10];
-            string Header = ReadParamSignature; // NOKXFR
+            const string Header = ReadParamSignature; // NOKXFR
             const string Param = "LZ\0\0";
 
             Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
@@ -377,7 +377,7 @@ namespace UnifiedFlashingPlatform
         public uint? ReadModeData(Mode Mode)
         {
             byte[] Request = new byte[0x10];
-            string Header = ReadParamSignature; // NOKXFR
+            const string Header = ReadParamSignature; // NOKXFR
             string Param = "MODE";
 
             Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);

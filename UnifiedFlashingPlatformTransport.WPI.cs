@@ -18,7 +18,7 @@ namespace UnifiedFlashingPlatform
 
             byte[] Request = new byte[Data.Length + 0x40];
 
-            string Header = FlashSignature; // NOKF
+            const string Header = FlashSignature; // NOKF
             Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
             Request[0x05] = TargetDevice; // Target device: 0: eMMC, 1: SDIO, 2: Other ???, 3: ???
             Buffer.BlockCopy(BigEndian.GetBytes(StartSector, 4), 0, Request, 0x0B, 4); // Start sector
@@ -77,7 +77,7 @@ namespace UnifiedFlashingPlatform
             }*/
 
             byte[] Request = new byte[0x04];
-            string Header = GetGPTSignature;
+            const string Header = GetGPTSignature;
 
             System.Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
 
@@ -177,7 +177,7 @@ namespace UnifiedFlashingPlatform
         {
             byte[] Request = new byte[FfuHeader.Length + 0x20];
 
-            string Header = SecureFlashSignature;
+            const string Header = SecureFlashSignature;
             Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
             Buffer.BlockCopy(BigEndian.GetBytes(0x0001, 2), 0, Request, 0x06, 2); // Protocol version = 0x0001
             Request[0x08] = (byte)Progress; // Progress = 0% (0 - 100)
@@ -203,7 +203,7 @@ namespace UnifiedFlashingPlatform
         {
             byte[] Request = new byte[FfuHeader.Length + 0x3C];
 
-            string Header = SecureFlashSignature;
+            const string Header = SecureFlashSignature;
             Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
             Buffer.BlockCopy(BigEndian.GetBytes(0x0002, 2), 0, Request, 0x06, 2); // Protocol version = 0x0002
             Request[0x08] = (byte)Progress; // Progress = 0% (0 - 100)
@@ -240,7 +240,7 @@ namespace UnifiedFlashingPlatform
         {
             byte[] Request = new byte[FfuChunk.Length + 0x1C];
 
-            string Header = SecureFlashSignature;
+            const string Header = SecureFlashSignature;
             Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
             Buffer.BlockCopy(BigEndian.GetBytes((int)FfuProtocol.ProtocolSyncV1, 2), 0, Request, 0x06, 2); // Protocol version = 0x0001
             Request[0x08] = (byte)Progress; // Progress = 0% (0 - 100)
@@ -267,7 +267,7 @@ namespace UnifiedFlashingPlatform
         {
             byte[] Request = new byte[FfuChunk.Length + 0x20];
 
-            string Header = SecureFlashSignature;
+            const string Header = SecureFlashSignature;
             Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
             Buffer.BlockCopy(BigEndian.GetBytes((int)FfuProtocol.ProtocolSyncV2, 2), 0, Request, 0x06, 2); // Protocol
             Request[0x08] = (byte)Progress; // Progress = 0% (0 - 100)
@@ -294,7 +294,7 @@ namespace UnifiedFlashingPlatform
         {
             byte[] Request = new byte[FfuChunk.Length + 0x20];
 
-            string Header = SecureFlashSignature;
+            const string Header = SecureFlashSignature;
             Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
             Buffer.BlockCopy(BigEndian.GetBytes((int)FfuProtocol.ProtocolAsyncV3, 2), 0, Request, 0x06, 2); // Protocol
             Request[0x08] = (byte)Progress; // Progress = 0% (0 - 100)
@@ -640,7 +640,7 @@ namespace UnifiedFlashingPlatform
         public void Shutdown()
         {
             byte[] Request = new byte[4];
-            string Header = ShutdownSignature;
+            const string Header = ShutdownSignature;
             Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
             ExecuteRawVoidMethod(Request);
         }

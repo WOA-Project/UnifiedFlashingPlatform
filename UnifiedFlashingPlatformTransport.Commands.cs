@@ -6,74 +6,74 @@
         // Not valid commands
         //
         /* NOK    */
-        private static string Signature => "NOK";
+        private const string Signature = "NOK";
         /* NOKX   */
-        private static string ExtendedMessageSignature => $"{Signature}X";
+        private const string ExtendedMessageSignature = $"{Signature}X";
         /* NOKXC  */
-        private static string CommonExtendedMessageSignature => $"{ExtendedMessageSignature}C";
+        private const string CommonExtendedMessageSignature = $"{ExtendedMessageSignature}C";
         /* NOKXF  */
-        private static string UFPExtendedMessageSignature => $"{ExtendedMessageSignature}F";
+        private const string UFPExtendedMessageSignature = $"{ExtendedMessageSignature}F";
 
         //
         // Normal commands
         //
         /* NOKF   */
-        private static string FlashSignature => $"{Signature}F";
+        private const string FlashSignature = $"{Signature}F";
         /* NOKI   */
-        private static string HelloSignature => $"{Signature}I";
+        private const string HelloSignature = $"{Signature}I";
         /* NOKM   */
-        private static string MassStorageSignature => $"{Signature}M";
+        private const string MassStorageSignature = $"{Signature}M";
         /* NOKN   */
-        private static string TelemetryEndSignature => $"{Signature}N";
+        private const string TelemetryEndSignature = $"{Signature}N";
         /* NOKR   */
-        private static string RebootSignature => $"{Signature}R";
+        private const string RebootSignature = $"{Signature}R";
         /* NOKS   */
-        private static string TelemetryStartSignature => $"{Signature}S";
+        private const string TelemetryStartSignature = $"{Signature}S";
         /* NOKT   */
-        private static string GetGPTSignature => $"{Signature}T";
+        private const string GetGPTSignature = $"{Signature}T";
         /* NOKV   */
-        private static string InfoQuerySignature => $"{Signature}V";
+        private const string InfoQuerySignature = $"{Signature}V";
         /* NOKZ   */
-        private static string ShutdownSignature => $"{Signature}Z";
+        private const string ShutdownSignature = $"{Signature}Z";
 
         //
         // Common extended commands
         //
         /* NOKXCB */
-        private static string SwitchModeSignature => $"{CommonExtendedMessageSignature}B";
+        private const string SwitchModeSignature = $"{CommonExtendedMessageSignature}B";
         /* NOKXCC */
-        private static string ClearScreenSignature => $"{CommonExtendedMessageSignature}C";
+        private const string ClearScreenSignature = $"{CommonExtendedMessageSignature}C";
         /* NOKXCD */
-        private static string GetDirectoryEntriesSignature => $"{CommonExtendedMessageSignature}D";
+        private const string GetDirectoryEntriesSignature = $"{CommonExtendedMessageSignature}D";
         /* NOKXCE */
-        private static string EchoSignature => $"{CommonExtendedMessageSignature}E";
+        private const string EchoSignature = $"{CommonExtendedMessageSignature}E";
         /* NOKXCF */
-        private static string GetFileSignature => $"{CommonExtendedMessageSignature}F";
+        private const string GetFileSignature = $"{CommonExtendedMessageSignature}F";
         /* NOKXCM */
-        private static string DisplayCustomMessageSignature => $"{CommonExtendedMessageSignature}M";
+        private const string DisplayCustomMessageSignature = $"{CommonExtendedMessageSignature}M";
         /* NOKXCP */
-        private static string PutFileSignature => $"{CommonExtendedMessageSignature}P";
+        private const string PutFileSignature = $"{CommonExtendedMessageSignature}P";
         /* NOKXCT */
-        private static string BenchmarkTestsSignature => $"{CommonExtendedMessageSignature}T";
+        private const string BenchmarkTestsSignature = $"{CommonExtendedMessageSignature}T";
 
         //
         // UFP extended commands
         //
         /* NOKXFF */
-        private static string AsyncFlashModeSignature => $"{UFPExtendedMessageSignature}F";
+        private const string AsyncFlashModeSignature = $"{UFPExtendedMessageSignature}F";
         /* NOKXFI */
-        private static string UnlockSignature => $"{UFPExtendedMessageSignature}I";
+        private const string UnlockSignature = $"{UFPExtendedMessageSignature}I";
         /* NOKXFO */
-        private static string RelockSignature => $"{UFPExtendedMessageSignature}O";
+        private const string RelockSignature = $"{UFPExtendedMessageSignature}O";
         /* NOKXFR */
-        private static string ReadParamSignature => $"{UFPExtendedMessageSignature}R";
+        private const string ReadParamSignature = $"{UFPExtendedMessageSignature}R";
         /* NOKXFS */
-        private static string SecureFlashSignature => $"{UFPExtendedMessageSignature}S";
+        private const string SecureFlashSignature = $"{UFPExtendedMessageSignature}S";
         /* NOKXFT */
-        private static string TelemetryReadSignature => $"{UFPExtendedMessageSignature}T";
+        private const string TelemetryReadSignature = $"{UFPExtendedMessageSignature}T";
         /* NOKXFW */
-        private static string WriteParamSignature => $"{UFPExtendedMessageSignature}W";
+        private const string WriteParamSignature = $"{UFPExtendedMessageSignature}W";
         /* NOKXFX */
-        private static string GetLogsSignature => $"{UFPExtendedMessageSignature}X";
+        private const string GetLogsSignature = $"{UFPExtendedMessageSignature}X";
     }
 }
