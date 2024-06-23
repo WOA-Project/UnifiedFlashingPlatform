@@ -30,7 +30,7 @@ namespace UnifiedFlashingPlatform
     [XmlType("Partitions")]
     public class GPT
     {
-        private byte[] GPTBuffer;
+        private byte[]? GPTBuffer;
         private readonly uint HeaderOffset;
         private readonly uint HeaderSize;
         private uint TableOffset;
@@ -98,74 +98,9 @@ namespace UnifiedFlashingPlatform
             HasChanged = false;
         }
 
-        internal Partition GetPartition(string Name)
+        internal Partition? GetPartition(string Name)
         {
             return Partitions.Find(p => string.Equals(p.Name, Name, StringComparison.CurrentCultureIgnoreCase));
-        }
-
-        // Magic!
-        // SecureBoot hack for Bootloader Spec A starts here
-        internal byte[] InsertHack()
-        {
-            Partition HackPartition = Partitions.Find(p => p.Name == "HACK");
-            Partition SBL1 = Partitions.Find(p => p.Name == "SBL1");
-            Partition SBL2 = Partitions.Find(p => p.Name == "SBL2");
-
-            if ((SBL1 == null) || (SBL2 == null))
-            {
-                throw new WPinternalsException("Bad GPT", "Can't patch GPT for the Secure Boot hack for Spec A devices. The provided GPT does not include a SBL1 and/or SBL2 partition.");
-            }
-
-            if (HackPartition == null)
-            {
-                HackPartition = new Partition
-                {
-                    Name = "HACK",
-                    Attributes = SBL2.Attributes,
-                    FirstSector = SBL1.LastSector,
-                    LastSector = SBL1.LastSector,
-
-                    PartitionTypeGuid = SBL2.PartitionTypeGuid,
-                    PartitionGuid = SBL2.PartitionGuid
-                };
-
-                Partitions.Add(HackPartition);
-
-                SBL1.LastSector--;
-
-                SBL2.PartitionTypeGuid = new Guid(new byte[] { 0x74, 0x74, 0x74, 0x74, 0x74, 0x74, 0x74, 0x74, 0x74, 0x74, 0x74, 0x74, 0x74, 0x74, 0x74, 0x74 });
-                SBL2.PartitionGuid = new Guid(new byte[] { 0x74, 0x74, 0x74, 0x74, 0x74, 0x74, 0x74, 0x74, 0x74, 0x74, 0x74, 0x74, 0x74, 0x74, 0x74, 0x74 });
-            }
-
-            HasChanged = true;
-
-            return Rebuild();
-        }
-
-        internal byte[] RemoveHack()
-        {
-            Partition HackPartition = Partitions.Find(p => p.Name == "HACK");
-            Partition SBL1 = Partitions.Find(p => p.Name == "SBL1");
-            Partition SBL2 = Partitions.Find(p => p.Name == "SBL2");
-
-            if ((SBL1 == null) || (SBL2 == null))
-            {
-                throw new WPinternalsException("Bad GPT", "Can't un-patch GPT for the Secure Boot hack for Spec A devices. The provided GPT does not include a SBL1 and/or SBL2 partition.");
-            }
-
-            if (HackPartition != null)
-            {
-                SBL2.PartitionTypeGuid = HackPartition.PartitionTypeGuid;
-                SBL2.PartitionGuid = HackPartition.PartitionGuid;
-
-                _ = Partitions.Remove(HackPartition);
-
-                SBL1.LastSector++;
-            }
-
-            HasChanged = true;
-
-            return Rebuild();
         }
 
         internal byte[] Rebuild()
@@ -373,7 +308,7 @@ namespace UnifiedFlashingPlatform
             // Existing partitions, which are overwritten by the new partitions will be removed from the existing GPT.
             // Existing partition with the same name in the existing GPT is reused (guids and attribs remain, if not specified).
             ulong LowestSector = 0;
-            Partition DPP = GetPartition("DPP");
+            Partition? DPP = GetPartition("DPP");
             if (DPP != null)
             {
                 LowestSector = DPP.LastSector + 1;
@@ -613,7 +548,7 @@ namespace UnifiedFlashingPlatform
         private ulong _FirstSector;
         private ulong _LastSector;
 
-        public string Name;            // 0x48
+        public string? Name;            // 0x48
         public Guid PartitionTypeGuid; // 0x10
         public Guid PartitionGuid;     // 0x10
         [XmlIgnore]

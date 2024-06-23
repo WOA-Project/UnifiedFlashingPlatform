@@ -23,7 +23,7 @@ namespace Img2Ffu.Reader.Data
         public ulong TotalChunkCount => Image.GetImageBlockCount();
 
         public readonly List<byte[]> BlockHashes = [];
-        public X509Certificate Certificate;
+        public X509Certificate? Certificate;
 
         private readonly Stream Stream;
 

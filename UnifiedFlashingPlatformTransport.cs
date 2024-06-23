@@ -31,9 +31,9 @@ namespace UnifiedFlashingPlatform
     public partial class UnifiedFlashingPlatformTransport : IDisposable
     {
         private bool Disposed = false;
-        private readonly USBDevice? USBDevice = null;
-        private readonly USBPipe? InputPipe = null;
-        private readonly USBPipe? OutputPipe = null;
+        private readonly USBDevice USBDevice;
+        private readonly USBPipe InputPipe;
+        private readonly USBPipe OutputPipe;
         private readonly object UsbLock = new();
 
         public UnifiedFlashingPlatformTransport(string DevicePath)
@@ -59,12 +59,12 @@ namespace UnifiedFlashingPlatform
             }
         }
 
-        public byte[] ExecuteRawMethod(byte[] RawMethod)
+        public byte[]? ExecuteRawMethod(byte[] RawMethod)
         {
             return ExecuteRawMethod(RawMethod, RawMethod.Length);
         }
 
-        public byte[] ExecuteRawMethod(byte[] RawMethod, int Length)
+        public byte[]? ExecuteRawMethod(byte[] RawMethod, int Length)
         {
             byte[] Buffer = new byte[0xF000]; // Should be at least 0x4408 for receiving the GPT packet.
             byte[]? Result = null;
@@ -172,7 +172,7 @@ namespace UnifiedFlashingPlatform
             _ = ExecuteRawMethod(Request);
         }
 
-        public byte[] Echo(byte[] DataPayload)
+        public byte[]? Echo(byte[] DataPayload)
         {
             byte[] Request = new byte[10 + DataPayload.Length];
             string Header = EchoSignature; // NOKXCE
@@ -181,7 +181,7 @@ namespace UnifiedFlashingPlatform
             Buffer.BlockCopy(BitConverter.GetBytes(DataPayload.Length).Reverse().ToArray(), 0, Request, 6, 4);
             Buffer.BlockCopy(DataPayload, 0, Request, 10, DataPayload.Length);
 
-            byte[] Response = ExecuteRawMethod(Request);
+            byte[]? Response = ExecuteRawMethod(Request);
             if ((Response == null) || (Response.Length < 6 + DataPayload.Length))
             {
                 return null;
@@ -209,7 +209,7 @@ namespace UnifiedFlashingPlatform
         }
 
         // WIP!
-        public string ReadLog()
+        public string? ReadLog()
         {
             PhoneInfo Info = ReadPhoneInfo();
 
@@ -238,7 +238,7 @@ namespace UnifiedFlashingPlatform
                 Buffer.BlockCopy(BitConverter.GetBytes(BufferSizeInt).Reverse().ToArray(), 0, Request, 7, 4);
                 Buffer.BlockCopy(BitConverter.GetBytes(i).Reverse().ToArray(), 0, Request, 11, 8);
 
-                byte[] Response = ExecuteRawMethod(Request);
+                byte[]? Response = ExecuteRawMethod(Request);
                 if ((Response == null) || (Response.Length < 0xC))
                 {
                     return null;

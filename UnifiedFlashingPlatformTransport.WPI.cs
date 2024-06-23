@@ -8,15 +8,6 @@ using System.Text;
 
 namespace UnifiedFlashingPlatform
 {
-    internal enum FfuProtocol
-    {
-        ProtocolSyncV1 = 1,
-        ProtocolAsyncV1 = 2,
-        ProtocolSyncV2 = 4,
-        ProtocolAsyncV2 = 8,
-        ProtocolAsyncV3 = 16
-    }
-
     public partial class UnifiedFlashingPlatformTransport
     {
         private readonly PhoneInfo Info = new();
@@ -45,11 +36,7 @@ namespace UnifiedFlashingPlatform
         {
             byte[] Request = new byte[4];
             ByteOperations.WriteAsciiString(Request, 0, HelloSignature);
-            byte[] Response = ExecuteRawMethod(Request);
-            if (Response == null)
-            {
-                throw new BadConnectionException();
-            }
+            byte[] Response = ExecuteRawMethod(Request) ?? throw new BadConnectionException();
 
             if (ByteOperations.ReadAsciiString(Response, 0, 4) != HelloSignature)
             {
@@ -94,7 +81,7 @@ namespace UnifiedFlashingPlatform
 
             System.Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
 
-            byte[] Buffer = ExecuteRawMethod(Request);
+            byte[]? Buffer = ExecuteRawMethod(Request);
             if ((Buffer == null) || (Buffer.Length < 0x4408))
             {
                 throw new InvalidOperationException("Unable to read GPT!");
@@ -103,7 +90,7 @@ namespace UnifiedFlashingPlatform
             ushort Error = (ushort)((Buffer[6] << 8) + Buffer[7]);
             if (Error > 0)
             {
-                throw new NotSupportedException("ReadGPT: Error 0x" + Error.ToString("X4"));
+                throw new NotSupportedException($"ReadGPT: Error 0x{Error:X4}");
             }
 
             // Length: 0x4400 for 512 (0x200) Sector Size (from sector 0 to sector 34)
@@ -114,7 +101,7 @@ namespace UnifiedFlashingPlatform
                 ? 512
                 : Buffer.Length == 0x6008
                     ? (uint)4096
-                    : throw new NotSupportedException("ReadGPT: Unsupported output size! 0x" + ReturnedGPTBufferLength.ToString("X4"));
+                    : throw new NotSupportedException($"ReadGPT: Unsupported output size! 0x{ReturnedGPTBufferLength:X4}");
 
             byte[] GPTBuffer = new byte[ReturnedGPTBufferLength - SectorSize];
             System.Buffer.BlockCopy(Buffer, 8 + (int)SectorSize, GPTBuffer, 0, (int)ReturnedGPTBufferLength - (int)SectorSize);
@@ -134,7 +121,7 @@ namespace UnifiedFlashingPlatform
             return new GPT(GPTBuffer, SectorSize);  // NOKT message header and MBR are ignored
         }
 
-        private void ThrowFlashError(int ErrorCode)
+        private static void ThrowFlashError(int ErrorCode)
         {
             string SubMessage = ErrorCode switch
             {
@@ -177,8 +164,11 @@ namespace UnifiedFlashingPlatform
                 0x0002 => "Flash read failed",
                 _ => "Unknown error",
             };
-            WPinternalsException Ex = new("Flash failed!");
-            Ex.SubMessage = "Error 0x" + ErrorCode.ToString("X4") + ": " + SubMessage;
+
+            WPinternalsException Ex = new("Flash failed!")
+            {
+                SubMessage = $"Error 0x{ErrorCode:X4}: {SubMessage}"
+            };
 
             throw Ex;
         }
@@ -187,10 +177,10 @@ namespace UnifiedFlashingPlatform
         {
             byte[] Request = new byte[FfuHeader.Length + 0x20];
 
-            const string Header = "NOKXFS";
-            Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
+            string Header = SecureFlashSignature;
+            Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
             Buffer.BlockCopy(BigEndian.GetBytes(0x0001, 2), 0, Request, 0x06, 2); // Protocol version = 0x0001
-            Request[0x08] = 0; // Progress = 0%
+            Request[0x08] = (byte)Progress; // Progress = 0% (0 - 100)
             Request[0x0B] = 1; // Subblock count = 1
             Buffer.BlockCopy(BigEndian.GetBytes(0x0000000B, 4), 0, Request, 0x0C, 4); // Subblock type for header = 0x0B
             Buffer.BlockCopy(BigEndian.GetBytes(FfuHeader.Length + 0x0C, 4), 0, Request, 0x10, 4); // Subblock length = length of header + 0x0C
@@ -200,11 +190,7 @@ namespace UnifiedFlashingPlatform
 
             Buffer.BlockCopy(FfuHeader, 0, Request, 0x20, FfuHeader.Length);
 
-            byte[] Response = ExecuteRawMethod(Request);
-            if (Response == null)
-            {
-                throw new BadConnectionException();
-            }
+            byte[] Response = ExecuteRawMethod(Request) ?? throw new BadConnectionException();
 
             int ResultCode = (Response[6] << 8) + Response[7];
             if (ResultCode != 0)
@@ -217,10 +203,10 @@ namespace UnifiedFlashingPlatform
         {
             byte[] Request = new byte[FfuHeader.Length + 0x3C];
 
-            const string Header = "NOKXFS";
-            Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
+            string Header = SecureFlashSignature;
+            Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
             Buffer.BlockCopy(BigEndian.GetBytes(0x0002, 2), 0, Request, 0x06, 2); // Protocol version = 0x0002
-            Request[0x08] = 0; // Progress = 0%
+            Request[0x08] = (byte)Progress; // Progress = 0% (0 - 100)
             Request[0x0B] = 1; // Subblock count = 1
 
             Buffer.BlockCopy(BigEndian.GetBytes(0x00000021, 4), 0, Request, 0x0C, 4); // Subblock type for header v2 = 0x21
@@ -236,11 +222,7 @@ namespace UnifiedFlashingPlatform
 
             Buffer.BlockCopy(FfuHeader, 0, Request, 0x3C, FfuHeader.Length);
 
-            byte[] Response = ExecuteRawMethod(Request);
-            if (Response == null)
-            {
-                throw new BadConnectionException();
-            }
+            byte[] Response = ExecuteRawMethod(Request) ?? throw new BadConnectionException();
 
             if (Response.Length == 4)
             {
@@ -258,8 +240,8 @@ namespace UnifiedFlashingPlatform
         {
             byte[] Request = new byte[FfuChunk.Length + 0x1C];
 
-            const string Header = "NOKXFS";
-            Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
+            string Header = SecureFlashSignature;
+            Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
             Buffer.BlockCopy(BigEndian.GetBytes((int)FfuProtocol.ProtocolSyncV1, 2), 0, Request, 0x06, 2); // Protocol version = 0x0001
             Request[0x08] = (byte)Progress; // Progress = 0% (0 - 100)
             Request[0x0B] = 1; // Subblock count = 1
@@ -272,11 +254,7 @@ namespace UnifiedFlashingPlatform
 
             Buffer.BlockCopy(FfuChunk, 0, Request, 0x1C, FfuChunk.Length);
 
-            byte[] Response = ExecuteRawMethod(Request);
-            if (Response == null)
-            {
-                throw new BadConnectionException();
-            }
+            byte[] Response = ExecuteRawMethod(Request) ?? throw new BadConnectionException();
 
             int ResultCode = (Response[6] << 8) + Response[7];
             if (ResultCode != 0)
@@ -289,8 +267,8 @@ namespace UnifiedFlashingPlatform
         {
             byte[] Request = new byte[FfuChunk.Length + 0x20];
 
-            const string Header = "NOKXFS";
-            Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
+            string Header = SecureFlashSignature;
+            Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
             Buffer.BlockCopy(BigEndian.GetBytes((int)FfuProtocol.ProtocolSyncV2, 2), 0, Request, 0x06, 2); // Protocol
             Request[0x08] = (byte)Progress; // Progress = 0% (0 - 100)
             Request[0x0B] = 1; // Subblock count = 1
@@ -303,11 +281,7 @@ namespace UnifiedFlashingPlatform
 
             Buffer.BlockCopy(FfuChunk, 0, Request, 0x20, FfuChunk.Length);
 
-            byte[] Response = ExecuteRawMethod(Request);
-            if (Response == null)
-            {
-                throw new BadConnectionException();
-            }
+            byte[] Response = ExecuteRawMethod(Request) ?? throw new BadConnectionException();
 
             int ResultCode = (Response[6] << 8) + Response[7];
             if (ResultCode != 0)
@@ -320,8 +294,8 @@ namespace UnifiedFlashingPlatform
         {
             byte[] Request = new byte[FfuChunk.Length + 0x20];
 
-            const string Header = "NOKXFS";
-            Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
+            string Header = SecureFlashSignature;
+            Buffer.BlockCopy(Encoding.ASCII.GetBytes(Header), 0, Request, 0, Header.Length);
             Buffer.BlockCopy(BigEndian.GetBytes((int)FfuProtocol.ProtocolAsyncV3, 2), 0, Request, 0x06, 2); // Protocol
             Request[0x08] = (byte)Progress; // Progress = 0% (0 - 100)
             Request[0x0B] = 1; // Subblock count = 1
@@ -336,77 +310,12 @@ namespace UnifiedFlashingPlatform
 
             Buffer.BlockCopy(FfuChunk, 0, Request, 0x40, FfuChunk.Length);
 
-            byte[] Response = ExecuteRawMethod(Request);
-            if (Response == null)
-            {
-                throw new BadConnectionException();
-            }
+            byte[] Response = ExecuteRawMethod(Request) ?? throw new BadConnectionException();
 
             int ResultCode = (Response[6] << 8) + Response[7];
             if (ResultCode != 0)
             {
                 ThrowFlashError(ResultCode);
-            }
-        }
-
-        public class ProgressUpdater
-        {
-            private readonly DateTime InitTime;
-            private DateTime LastUpdateTime;
-            private readonly ulong MaxValue;
-            private readonly Action<int, TimeSpan?> ProgressUpdateCallback;
-            public int ProgressPercentage;
-
-            public ProgressUpdater(ulong MaxValue, Action<int, TimeSpan?> ProgressUpdateCallback)
-            {
-                InitTime = DateTime.Now;
-                LastUpdateTime = DateTime.Now;
-                this.MaxValue = MaxValue;
-                this.ProgressUpdateCallback = ProgressUpdateCallback;
-                SetProgress(0);
-            }
-
-            private ulong _Progress;
-            public ulong Progress
-            {
-                get
-                {
-                    return _Progress;
-                }
-            }
-
-            public void SetProgress(ulong NewValue)
-            {
-                if (_Progress != NewValue)
-                {
-                    int PreviousProgressPercentage = (int)((double)_Progress / MaxValue * 100);
-                    ProgressPercentage = (int)((double)NewValue / MaxValue * 100);
-
-                    _Progress = NewValue;
-
-                    if (((DateTime.Now - LastUpdateTime) > TimeSpan.FromSeconds(0.5)) || (ProgressPercentage == 100))
-                    {
-#if DEBUG
-                        Debug.WriteLine("Init time: " + InitTime.ToShortTimeString() + " / Now: " + DateTime.Now.ToString() + " / NewValue: " + NewValue.ToString() + " / MaxValue: " + MaxValue.ToString() + " ->> Percentage: " + ProgressPercentage.ToString() + " / Remaining: " + TimeSpan.FromTicks((long)((DateTime.Now - InitTime).Ticks / ((double)NewValue / MaxValue) * (1 - ((double)NewValue / MaxValue)))).ToString());
-#endif
-
-                        if (((DateTime.Now - InitTime) < TimeSpan.FromSeconds(30)) && (ProgressPercentage < 15))
-                        {
-                            ProgressUpdateCallback(ProgressPercentage, null);
-                        }
-                        else
-                        {
-                            ProgressUpdateCallback(ProgressPercentage, TimeSpan.FromTicks((long)((DateTime.Now - InitTime).Ticks / ((double)NewValue / MaxValue) * (1 - ((double)NewValue / MaxValue)))));
-                        }
-
-                        LastUpdateTime = DateTime.Now;
-                    }
-                }
-            }
-
-            public void IncreaseProgress(ulong Progress)
-            {
-                SetProgress(_Progress + Progress);
             }
         }
 
@@ -421,9 +330,9 @@ namespace UnifiedFlashingPlatform
             FlashFFU(FfuFile, null, ResetAfterwards, Options);
         }
 
-        public void FlashFFU(FileStream FfuFile, ProgressUpdater UpdaterPerChunk, bool ResetAfterwards = true, byte Options = 0)
+        public void FlashFFU(FileStream FfuFile, ProgressUpdater? UpdaterPerChunk, bool ResetAfterwards = true, byte Options = 0)
         {
-            ProgressUpdater Progress = UpdaterPerChunk;
+            ProgressUpdater? Progress = UpdaterPerChunk;
 
             PhoneInfo Info = ReadPhoneInfo();
             if ((Info.SecureFfuSupportedProtocolMask & ((ushort)FfuProtocol.ProtocolSyncV1 | (ushort)FfuProtocol.ProtocolSyncV2)) == 0)
@@ -526,8 +435,8 @@ namespace UnifiedFlashingPlatform
             if (Result.State == PhoneInfoState.Empty)
             {
                 byte[] Request = new byte[4];
-                ByteOperations.WriteAsciiString(Request, 0, "NOKV");
-                byte[] Response = ExecuteRawMethod(Request);
+                ByteOperations.WriteAsciiString(Request, 0, InfoQuerySignature);
+                byte[]? Response = ExecuteRawMethod(Request);
                 if ((Response != null) && (ByteOperations.ReadAsciiString(Response, 0, 4) != "NOKU"))
                 {
                     Result.App = (FlashAppType)Response[5];
@@ -569,7 +478,7 @@ namespace UnifiedFlashingPlatform
                                 }
                                 break;
                             case 0x05:
-                                Result.PlatformID = ByteOperations.ReadAsciiString(Response, (uint)SubblockPayloadOffset, SubblockLength).Trim(new char[] { ' ', '\0' });
+                                Result.PlatformID = ByteOperations.ReadAsciiString(Response, (uint)SubblockPayloadOffset, SubblockLength).Trim([' ', '\0']);
                                 break;
                             case 0x0D:
                                 Result.AsyncSupport = Response[SubblockPayloadOffset + 1] == 1;
@@ -600,7 +509,7 @@ namespace UnifiedFlashingPlatform
                                 ushort FlashType = BigEndian.ToUInt16(Response, SubblockPayloadOffset + 8);
                                 ushort FlashTypeIndex = BigEndian.ToUInt16(Response, SubblockPayloadOffset + 10);
                                 uint Unknown = BigEndian.ToUInt32(Response, SubblockPayloadOffset + 12);
-                                string DevicePath = ByteOperations.ReadUnicodeString(Response, (uint)SubblockPayloadOffset + 16, (uint)SubblockLength - 16).Trim(new char[] { ' ', '\0' });
+                                string DevicePath = ByteOperations.ReadUnicodeString(Response, (uint)SubblockPayloadOffset + 16, (uint)SubblockLength - 16).Trim([' ', '\0']);
                                 Result.BootDevices.Add((SectorCount, SectorSize, FlashType, FlashTypeIndex, Unknown, DevicePath));
                                 break;
                             case 0x23:
@@ -683,7 +592,7 @@ namespace UnifiedFlashingPlatform
             public uint SdCardSizeInSectors;
             public uint WriteBufferSize;
             public uint EmmcSizeInSectors;
-            public string PlatformID;
+            public string? PlatformID;
             public ushort SecureFfuSupportedProtocolMask;
             public bool AsyncSupport;
 
@@ -695,16 +604,16 @@ namespace UnifiedFlashingPlatform
             public bool UefiSecureBootEnabled;
             public bool SecondaryHardwareKeyPresent;
 
-            public string Manufacturer;
-            public string Family;
-            public string ProductName;
-            public string ProductVersion;
-            public string SKUNumber;
-            public string BaseboardManufacturer;
-            public string BaseboardProduct;
+            public string? Manufacturer;
+            public string? Family;
+            public string? ProductName;
+            public string? ProductVersion;
+            public string? SKUNumber;
+            public string? BaseboardManufacturer;
+            public string? BaseboardProduct;
             public ulong LargestMemoryRegion;
             public AppType AppType;
-            public List<(uint SectorCount, uint SectorSize, ushort FlashType, ushort FlashIndex, uint Unknown, string DevicePath)> BootDevices = new();
+            public List<(uint SectorCount, uint SectorSize, ushort FlashType, ushort FlashIndex, uint Unknown, string DevicePath)> BootDevices = [];
 
             public bool IsBootloaderSecure;
 
@@ -713,18 +622,18 @@ namespace UnifiedFlashingPlatform
                 switch (App)
                 {
                     case FlashAppType.FlashApp:
-                        Debug.WriteLine("Flash app: " + FlashAppVersionMajor + "." + FlashAppVersionMinor);
-                        Debug.WriteLine("Flash protocol: " + FlashAppProtocolVersionMajor + "." + FlashAppProtocolVersionMinor);
+                        Debug.WriteLine($"Flash app: {FlashAppVersionMajor}.{FlashAppVersionMinor}");
+                        Debug.WriteLine($"Flash protocol: {FlashAppProtocolVersionMajor}.{FlashAppProtocolVersionMinor}");
                         break;
                 }
 
-                Debug.WriteLine("SecureBoot: " + ((!PlatformSecureBootEnabled || !UefiSecureBootEnabled) ? "Disabled" : "Enabled") + " (Platform Secure Boot: " + (PlatformSecureBootEnabled ? "Enabled" : "Disabled") + ", UEFI Secure Boot: " + (UefiSecureBootEnabled ? "Enabled" : "Disabled") + ")");
+                Debug.WriteLine($"SecureBoot: {((!PlatformSecureBootEnabled || !UefiSecureBootEnabled) ? "Disabled" : "Enabled")} (Platform Secure Boot: {(PlatformSecureBootEnabled ? "Enabled" : "Disabled")}, UEFI Secure Boot: {(UefiSecureBootEnabled ? "Enabled" : "Disabled")})");
 
-                Debug.WriteLine("Flash app security: " + (!IsBootloaderSecure ? "Disabled" : "Enabled"));
+                Debug.WriteLine($"Flash app security: {(!IsBootloaderSecure ? "Disabled" : "Enabled")}");
 
-                Debug.WriteLine("Flash app security: " + (!IsBootloaderSecure ? "Disabled" : "Enabled") + " (FFU security: " + (SecureFfuEnabled ? "Enabled" : "Disabled") + ", RDC: " + (RdcPresent ? "Present" : "Not found") + ", Authenticated: " + (Authenticated ? "True" : "False") + ")");
+                Debug.WriteLine($"Flash app security: {(!IsBootloaderSecure ? "Disabled" : "Enabled")} (FFU security: {(SecureFfuEnabled ? "Enabled" : "Disabled")}, RDC: {(RdcPresent ? "Present" : "Not found")}, Authenticated: {(Authenticated ? "True" : "False")})");
 
-                Debug.WriteLine("JTAG: " + (JtagDisabled ? "Disabled" : "Enabled"));
+                Debug.WriteLine($"JTAG: {(JtagDisabled ? "Disabled" : "Enabled")}");
             }
         }
 

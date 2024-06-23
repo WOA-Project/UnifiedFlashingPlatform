@@ -255,7 +255,7 @@ namespace UnifiedFlashingPlatform
             return System.Collections.StructuralComparisons.StructuralEqualityComparer.Equals(Array1, Array2);
         }
 
-        internal static uint? FindPattern(byte[] SourceBuffer, uint SourceOffset, uint? SourceSize, byte[] Pattern, byte[] Mask, byte[] OutPattern)
+        internal static uint? FindPattern(byte[] SourceBuffer, uint SourceOffset, uint? SourceSize, byte[] Pattern, byte[]? Mask, byte[]? OutPattern)
         {
             // The mask is optional.
             // In the mask 0x00 means the value must match, and 0xFF means that this position is a wildcard.
