@@ -49,7 +49,7 @@ namespace UnifiedFlashingPlatform
         {
         }
 
-        internal GPT(byte[] GPTBuffer, uint SectorSize)
+        public GPT(byte[] GPTBuffer, uint SectorSize)
         {
             this.GPTBuffer = GPTBuffer;
             this.SectorSize = SectorSize;
@@ -569,7 +569,7 @@ namespace UnifiedFlashingPlatform
         }
 
         [XmlIgnore]
-        internal ulong FirstSector // 0x08
+        public ulong FirstSector // 0x08
         {
             get => _FirstSector;
             set
@@ -583,7 +583,7 @@ namespace UnifiedFlashingPlatform
         }
 
         [XmlIgnore]
-        internal ulong LastSector // 0x08
+        public ulong LastSector // 0x08
         {
             get => _LastSector;
             set
