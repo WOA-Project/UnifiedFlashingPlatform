@@ -22,10 +22,10 @@ using System;
 
 namespace UnifiedFlashingPlatform
 {
-    internal class WPinternalsException : Exception
+    public class WPinternalsException : Exception
     {
         // Message and SubMessaage are always printable
-        internal string? SubMessage = null;
+        public string? SubMessage = null;
 
         internal WPinternalsException() : base() { }
 
