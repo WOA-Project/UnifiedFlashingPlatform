@@ -10,4 +10,8 @@
 		<PackageReference Include="WinUSBNet" Version="2.1.0" />
 	</ItemGroup>
 
+	<ItemGroup>
+		<ProjectReference Include="..\img2ffu\Img2Ffu.Library\Img2Ffu.Library.csproj" />
+	</ItemGroup>
+
 </Project>
