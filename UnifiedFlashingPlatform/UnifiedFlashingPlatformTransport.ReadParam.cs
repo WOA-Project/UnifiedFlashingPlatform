@@ -473,9 +473,9 @@ namespace UnifiedFlashingPlatform
         // Reads the device properties from the UEFI Variable "UnlockID"
         // in the g_guidOfflineDUIdEfiNamespace namespace and returns it as a string.
         //
-        public string? ReadUnlockID()
+        public byte[] ReadUnlockID()
         {
-            return ReadStringParam("UKID");
+            return ReadParam("UKID");
         }
 
         public string? ReadUnlockTokenFiles()
